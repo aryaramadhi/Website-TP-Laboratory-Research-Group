@@ -1,0 +1,321 @@
+/* Home Page Styles */
+
+/* Section Title Component */
+.section-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    margin-bottom: 56px;
+    text-align: center;
+}
+
+.section-title__bar {
+    width: 45px;
+    height: 3px;
+    background-color: var(--color-primary-300);
+    border-radius: var(--radius-lg);
+    flex-shrink: 0;
+}
+
+.section-title__text {
+    font-size: var(--font-size-h4);
+    line-height: var(--line-height-h4);
+    font-weight: 700;
+    color: var(--color-primary-700);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+/* Introduction Section */
+.home-intro {
+    padding-top: clamp(48px, 5vw, 64px);
+    padding-bottom: clamp(36px, 4vw, 48px);
+    background-color: var(--color-white);
+}
+
+.home-intro__content {
+    max-width: 960px;
+    margin: 0 auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+}
+
+.home-intro__title {
+    font-size: var(--font-size-h3);
+    line-height: var(--line-height-h3);
+    font-weight: 700;
+    color: var(--color-primary-300);
+}
+
+.home-intro__desc {
+    font-size: var(--font-size-body-1);
+    line-height: 1.6;
+    font-weight: 700;
+    color: var(--color-black);
+    text-align: center;
+}
+
+/* Main Content Sections */
+.home-content.container,
+.home-content {
+    width: 100%;
+    max-width: min(1440px, 94vw);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: clamp(24px, 3.5vw, 48px);
+    padding-right: clamp(24px, 3.5vw, 48px);
+    padding-top: 24px;
+    padding-bottom: clamp(64px, 7vw, 96px);
+}
+
+.home-section {
+    margin-bottom: clamp(64px, 7vw, 96px);
+}
+
+.home-section:last-child {
+    margin-bottom: 0;
+}
+
+.home-section__header {
+    margin-bottom: clamp(36px, 4vw, 52px);
+}
+
+.home-section__list {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(40px, 4vw, 52px);
+}
+
+.home-section__action {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 32px;
+}
+
+/* Home-scoped Card Distribution: Wide balanced 2-column layout without enlarging element sizes */
+.home-content .research-card,
+.home-content .news-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: center;
+    width: 100%;
+}
+
+.home-content .research-card__media,
+.home-content .news-card__media {
+    width: 100%;
+    height: clamp(320px, 24vw, 360px);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.home-content .research-card__image,
+.home-content .news-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.home-content .research-card__content,
+.home-content .news-card__content {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    justify-content: center;
+}
+
+.home-content .research-card--reverse .research-card__action {
+    justify-content: flex-start;
+}
+
+.home-content .research-card__title,
+.home-content .news-card__title {
+    font-size: var(--font-size-h4);
+    line-height: var(--line-height-h4);
+    font-weight: 700;
+}
+
+.home-content .research-card__excerpt,
+.home-content .news-card__excerpt {
+    font-size: var(--font-size-body-1);
+    line-height: var(--line-height-body-1);
+}
+
+/* Achievements Grid: Distributed naturally across the same width */
+.home-achievements__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    width: 100%;
+}
+
+.home-achievements__grid .achievement-card {
+    width: 100%;
+}
+
+.home-achievements__grid .achievement-card__media {
+    height: clamp(330px, 25vw, 380px);
+}
+
+/* Responsive Styles */
+@media (max-width: 992px) {
+    .home-intro {
+        padding-top: 40px;
+        padding-bottom: 32px;
+    }
+
+    .home-intro__title {
+        font-size: 32px;
+        line-height: 40px;
+    }
+
+    .home-intro__desc {
+        font-size: 15px;
+    }
+
+    .home-content {
+        padding-bottom: 64px;
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    .home-section {
+        margin-bottom: 64px;
+    }
+
+    .home-section__header {
+        margin-bottom: 40px;
+    }
+
+    .section-title__text {
+        font-size: 26px;
+        line-height: 34px;
+    }
+
+    .section-title__bar {
+        width: 32px;
+    }
+
+    .home-section__list {
+        gap: 36px;
+    }
+
+    .home-content .research-card,
+    .home-content .news-card {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .home-content .research-card--reverse .research-card__media,
+    .home-content .news-card--reverse .news-card__media {
+        order: 0;
+    }
+
+    .home-content .research-card--reverse .research-card__content,
+    .home-content .news-card--reverse .news-card__content {
+        order: 1;
+    }
+
+    .home-content .research-card__media,
+    .home-content .news-card__media {
+        max-width: 100%;
+        height: 260px;
+    }
+
+    .home-content .research-card__content,
+    .home-content .news-card__content {
+        max-width: 100%;
+    }
+
+    .home-achievements__grid {
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+
+    .home-achievements__grid .achievement-card {
+        max-width: 100%;
+    }
+
+    .home-achievements__grid .achievement-card__media {
+        height: 280px;
+    }
+
+    .home-section__action {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 640px) {
+    .home-content {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-bottom: 48px;
+    }
+
+    .home-section {
+        margin-bottom: 48px;
+    }
+
+    .home-section__header {
+        margin-bottom: 28px;
+    }
+
+    .home-section__list {
+        gap: 28px;
+    }
+
+    .home-content .research-card,
+    .home-content .news-card {
+        gap: 18px;
+    }
+
+    .home-content .research-card__media,
+    .home-content .news-card__media {
+        height: clamp(190px, 54vw, 240px);
+    }
+
+    .home-achievements__grid {
+        gap: 20px;
+    }
+
+    .home-achievements__grid .achievement-card__media {
+        height: clamp(190px, 54vw, 240px);
+    }
+
+    .section-title {
+        gap: 16px;
+    }
+
+    .section-title__text {
+        font-size: 20px;
+        line-height: 28px;
+    }
+
+    .section-title__bar {
+        width: 24px;
+    }
+
+    .home-intro {
+        padding-top: 32px;
+        padding-bottom: 24px;
+    }
+
+    .home-intro__title {
+        font-size: 24px;
+        line-height: 32px;
+    }
+
+    .home-section__action {
+        margin-top: 24px;
+    }
+
+    .home-section__action .button {
+        width: 100%;
+    }
+}
