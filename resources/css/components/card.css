@@ -1,0 +1,517 @@
+/* Card Components */
+
+/* Research Card */
+.research-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(40px, 4.5vw, 64px);
+    align-items: center;
+    width: 100%;
+}
+
+.research-card--reverse .research-card__media {
+    order: 2;
+}
+
+.research-card--reverse .research-card__content {
+    order: 1;
+}
+
+.research-card__media {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    height: clamp(300px, 24vw, 360px);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background-color: var(--color-secondary-100);
+}
+
+.research-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-lg);
+    transition: transform 0.3s ease;
+}
+
+.research-card:hover .research-card__image {
+    transform: scale(1.02);
+}
+
+.research-card__badge {
+    position: absolute;
+    top: 20px;
+    z-index: 6;
+}
+
+.research-card__badge--right {
+    right: 24px;
+}
+
+.research-card__badge--left {
+    left: 24px;
+}
+
+.research-card__content {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    justify-content: center;
+}
+
+.research-card__title {
+    font-size: var(--font-size-h4);
+    line-height: var(--line-height-h4);
+    font-weight: 700;
+    color: var(--color-primary-300);
+}
+
+.research-card__title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.research-card__title a:hover {
+    color: var(--color-primary-400);
+}
+
+.research-card__excerpt {
+    font-size: var(--font-size-body-1);
+    line-height: var(--line-height-body-1);
+    color: var(--color-black);
+}
+
+.research-card__action {
+    display: flex;
+    align-items: center;
+}
+
+.research-card--reverse .research-card__action {
+    justify-content: flex-start;
+}
+
+.research-card__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-primary-300);
+    font-size: var(--font-size-body-1);
+    font-weight: 700;
+    text-decoration: none;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.research-card__link:hover {
+    color: var(--color-primary-400);
+    transform: translateX(4px);
+}
+
+.research-card__link-icon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+}
+
+/* News Card */
+.news-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(40px, 4.5vw, 64px);
+    align-items: center;
+    width: 100%;
+}
+
+.news-card--reverse .news-card__media {
+    order: 2;
+}
+
+.news-card--reverse .news-card__content {
+    order: 1;
+}
+
+.news-card__media {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    height: clamp(300px, 24vw, 360px);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background-color: var(--color-secondary-100);
+}
+
+.news-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-lg);
+    transition: transform 0.3s ease;
+}
+
+.news-card:hover .news-card__image {
+    transform: scale(1.02);
+}
+
+.news-card__content {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    justify-content: center;
+}
+
+.news-card__title {
+    font-size: var(--font-size-h4);
+    line-height: var(--line-height-h4);
+    font-weight: 700;
+    color: var(--color-primary-300);
+}
+
+.news-card__title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.news-card__title a:hover {
+    color: var(--color-primary-400);
+}
+
+.news-card__excerpt {
+    font-size: var(--font-size-body-1);
+    line-height: var(--line-height-body-1);
+    color: var(--color-black);
+}
+
+.news-card__more {
+    color: var(--color-primary-300);
+    font-weight: 700;
+    text-decoration: underline;
+    margin-left: 6px;
+}
+
+.news-card__more:hover {
+    color: var(--color-primary-400);
+}
+
+.news-card__action {
+    display: flex;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.news-card--reverse .news-card__action {
+    justify-content: flex-start;
+}
+
+.news-card__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-primary-300);
+    font-size: var(--font-size-body-1);
+    font-weight: 700;
+    text-decoration: none;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.news-card__link:hover {
+    color: var(--color-primary-400);
+    transform: translateX(4px);
+}
+
+.news-card__link-icon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+}
+
+/* Achievement Card */
+.achievement-card {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background-color: var(--color-white);
+    border: 1px solid var(--color-neutral-100);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.achievement-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+}
+
+.achievement-card__inner {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    height: 100%;
+    text-decoration: none;
+    color: inherit;
+}
+
+.achievement-card__content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    height: 100%;
+}
+
+.achievement-card__media {
+    position: relative;
+    width: 100%;
+    height: clamp(280px, 22vw, 360px);
+    overflow: hidden;
+    background-color: var(--color-secondary-100);
+}
+
+.achievement-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.achievement-card:hover .achievement-card__image {
+    transform: scale(1.03);
+}
+
+.achievement-card__badge {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background-color: var(--color-primary-300);
+    color: var(--color-white);
+    padding: 5px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    z-index: 6;
+}
+
+.achievement-card__divider {
+    width: 100%;
+    height: 2px;
+    background-color: var(--color-primary-300);
+}
+
+.achievement-card__body {
+    padding: 24px 28px 32px;
+    background-color: var(--color-white);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.achievement-card__title {
+    font-size: 26px;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--color-secondary-500);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: calc(2 * 1.35em);
+}
+
+.achievement-card__description {
+    font-size: var(--font-size-body-1);
+    line-height: 1.5;
+    color: var(--color-primary-700);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .research-card,
+    .research-card--reverse,
+    .news-card,
+    .news-card--reverse {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+    }
+
+    .research-card--reverse .research-card__media,
+    .news-card--reverse .news-card__media {
+        order: 1;
+    }
+
+    .research-card--reverse .research-card__content,
+    .news-card--reverse .news-card__content {
+        order: 2;
+    }
+
+    .research-card__media,
+    .news-card__media {
+        width: 100%;
+        height: 280px;
+    }
+
+    .research-card__title,
+    .news-card__title {
+        font-size: 24px;
+        line-height: 32px;
+    }
+
+    .achievement-card__media {
+        height: 280px;
+    }
+
+    .achievement-card__title {
+        font-size: 22px;
+        line-height: 30px;
+    }
+}
+
+@media (max-width: 640px) {
+    .research-card,
+    .research-card--reverse,
+    .news-card,
+    .news-card--reverse {
+        gap: 20px;
+    }
+
+    .research-card__media,
+    .news-card__media {
+        height: clamp(190px, 54vw, 240px);
+    }
+
+    .research-card__title,
+    .news-card__title {
+        font-size: 20px;
+        line-height: 28px;
+    }
+
+    .research-card__excerpt,
+    .news-card__excerpt {
+        font-size: 14px;
+        line-height: 22px;
+    }
+
+    .achievement-card__media {
+        height: clamp(190px, 54vw, 240px);
+    }
+
+    .achievement-card__body {
+        padding: 20px 20px 24px;
+        gap: 12px;
+    }
+
+    .achievement-card__title {
+        font-size: 20px;
+        line-height: 26px;
+        min-height: calc(2 * 26px);
+    }
+}
+
+@media (max-width: 480px) {
+    .achievement-card__body {
+        padding: 16px 16px 20px;
+    }
+
+    .research-card__badge,
+    .news-card__badge {
+        top: 14px;
+    }
+
+    .research-card__badge--right,
+    .news-card__badge--right {
+        right: 16px;
+    }
+
+    .research-card__badge--left,
+    .news-card__badge--left {
+        left: 16px;
+    }
+}
+
+/* Editable Item & Edit Button Positions */
+
+.editable-item {
+    position: relative;
+}
+
+/* Centered Edit Button on Image-based Cards (List / Index pages only) */
+.research-card__media .admin-edit-btn,
+.news-card__media .admin-edit-btn {
+    width: 120px;
+    height: 120px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.research-card__media .admin-edit-btn .admin-edit-btn__icon,
+.news-card__media .admin-edit-btn .admin-edit-btn__icon {
+    width: 42px;
+    height: 42px;
+}
+
+/* Achievement card (grid) centered button */
+.achievement-card__media .admin-edit-btn {
+    width: 96px;
+    height: 96px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.achievement-card__media .admin-edit-btn .admin-edit-btn__icon {
+    width: 36px;
+    height: 36px;
+}
+
+@media (max-width: 640px) {
+    .research-card__media .admin-edit-btn,
+    .news-card__media .admin-edit-btn {
+        width: 80px;
+        height: 80px;
+    }
+
+    .research-card__media .admin-edit-btn .admin-edit-btn__icon,
+    .news-card__media .admin-edit-btn .admin-edit-btn__icon {
+        width: 30px;
+        height: 30px;
+    }
+
+    .achievement-card__media .admin-edit-btn {
+        width: 76px;
+        height: 76px;
+    }
+
+    .achievement-card__media .admin-edit-btn .admin-edit-btn__icon {
+        width: 28px;
+        height: 28px;
+    }
+}
+
+/* Empty & Error State Indicators */
+.card-empty-state,
+.card-error-state {
+    padding: 36px 24px;
+    text-align: center;
+    background-color: var(--color-neutral-100, #f8fafc);
+    border-radius: var(--radius-md);
+    color: var(--color-neutral-500, #64748b);
+    font-size: var(--font-size-body-1);
+    border: 1px dashed var(--color-neutral-300, #cbd5e1);
+    width: 100%;
+}
+
+.card-error-state {
+    border-color: rgba(220, 38, 38, 0.3);
+    color: #dc2626;
+    background-color: rgba(254, 242, 242, 0.6);
+}
