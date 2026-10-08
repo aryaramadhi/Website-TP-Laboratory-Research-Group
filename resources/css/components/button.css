@@ -1,0 +1,102 @@
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background-color: var(--color-primary-300);
+    color: var(--color-white);
+    border-radius: var(--radius-md);
+    padding: 10px 20px;
+    font-size: var(--font-size-body-1);
+    font-weight: 700;
+    line-height: 1.2;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.button:hover {
+    background-color: var(--color-primary-400);
+    color: var(--color-white);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(169, 142, 92, 0.25);
+}
+
+.button:active {
+    transform: translateY(0);
+}
+
+.button__icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+/* Admin Edit Button */
+
+.admin-edit-btn {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #2D3238;
+    color: var(--color-white);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 5;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    padding: 0;
+    transition: opacity 0.2s ease, visibility 0.2s ease, background-color 0.2s ease;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.26);
+}
+
+.admin-edit-btn:hover {
+    background-color: #1F2327;
+}
+
+.admin-edit-btn__icon {
+    display: block;
+    color: var(--color-white);
+    stroke: currentColor;
+    flex-shrink: 0;
+}
+
+/* Show on hover when admin mode is active (List / Index pages only) */
+body.is-admin .research-card__media:hover .admin-edit-btn,
+body.is-admin .news-card__media:hover .admin-edit-btn,
+body.is-admin .achievement-card__media:hover .admin-edit-btn,
+body.is-admin .publication-accordion__entry:hover .admin-edit-btn,
+body.is-admin .admin-edit-btn:focus-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* Detail Pages: Strictly no circular edit overlay on images */
+.research-detail .admin-edit-btn,
+.news-detail .admin-edit-btn,
+.achievement-detail .admin-edit-btn {
+    display: none !important;
+}
+
+/* Touch fallback: on non-hover devices, keep accessible when in admin mode */
+@media (hover: none) {
+    body.is-admin .admin-edit-btn {
+        opacity: 0.92;
+        visibility: visible;
+        pointer-events: auto;
+    }
+}
+
+/* Visitor Mode: hide all admin controls */
+body:not(.is-admin) .admin-edit-btn,
+body:not(.is-admin) .admin-action-bar,
+body:not(.is-admin) .admin-add-btn,
+body:not(.is-admin) .admin-detail-action-bar,
+body:not(.is-admin) .admin-edit-action-btn {
+    display: none !important;
+}
