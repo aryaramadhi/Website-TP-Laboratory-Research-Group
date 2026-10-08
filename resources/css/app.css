@@ -1,9 +1,19 @@
-@import 'tailwindcss';
+@import './variables.css';
+@import './base.css';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
+@import './components/navbar.css';
+@import './components/footer.css';
+@import './components/hero.css';
+@import './components/button.css';
+@import './components/card.css';
+@import './components/badge.css';
+@import './components/modal.css';
+@import './components/dropdown.css';
+@import './components/accordion.css';
+@import './components/form.css';
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
-}
+@import './pages/home.css';
+@import './pages/research.css';
+@import './pages/publication.css';
+@import './pages/news.css';
+@import './pages/achievement.css';
