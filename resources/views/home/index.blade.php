@@ -111,7 +111,7 @@
         </section>
 
         <section class="home-section" id="prestasi-pencapaian">
-            <x-section-title title="PRESTASI &amp; PENCAPAIAN" class="home-section__header" />
+            <x-section-title title="PRESTASI & PENCAPAIAN" class="home-section__header" />
             <div class="home-achievements__grid" id="home-achievement-list">
                 @foreach ($achievements as $achievement)
                     <x-achievement-card
@@ -125,7 +125,7 @@
                 @endforeach
             </div>
             <div class="home-section__action">
-                <x-button href="{{ url('/prestasi') }}" icon="images/icons/chevron-right.png">Lihat Semua Prestasi &amp; Pencapaian</x-button>
+                <x-button href="{{ url('/prestasi') }}" icon="images/icons/chevron-right.png">Lihat Semua Prestasi & Pencapaian</x-button>
             </div>
         </section>
     </div>
