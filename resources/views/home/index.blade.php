@@ -8,7 +8,7 @@
     $researches = [
         (object) [
             'id' => 1,
-            'title' => 'riset 1',
+            'title' => 'Building Integrated Photovoltaic (BIPV): Menyatukan estetika bangunan dan sinar surya – Inovasi mandiri energi hemat lahan',
             'main_image' => 'images/home/research-1.jpg',
             'status' => 'Sedang Berjalan',
             'excerpt' => 'Teknologi Building-Integrated Photovoltaics (BIPV) semakin menarik perhatian di Indonesia dan global sebagai solusi energi terbarukan yang efisien serta estetis.',
