@@ -33,14 +33,14 @@
 @section('content')
     <x-hero title="Prestasi & Pencapaian" image="images/achievements/hero-bg.jpg" />
 
-    <div class="container achievement-catalog">
+    <div class="container achievement-page">
         <div class="admin-action-bar">
             <x-admin-add-button modal="achievement-modal">
-                Tambah Prestasi & Pencapaian
+                Tambah Prestasi &amp; Pencapaian
             </x-admin-add-button>
         </div>
 
-        <div class="achievement-catalog__grid">
+        <div class="achievement-grid">
             @foreach ($achievements as $achievement)
                 <x-achievement-card
                     :id="$achievement->id"
