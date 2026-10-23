@@ -658,10 +658,6 @@ export function initModal() {
                 e.preventDefault();
                 openModal('login-modal');
                 return;
-            } else if (action === 'register') {
-                e.preventDefault();
-                openModal('register-modal');
-                return;
             }
         }
 
@@ -808,44 +804,6 @@ export function initModal() {
         });
     }
 
-    // Handle Register Form Submission
-    const registerForm = document.querySelector('[data-auth-form="register"]');
-    if (registerForm) {
-        registerForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const modal = registerForm.closest('[data-modal]');
-            clearModalErrors(modal);
-
-            const emailInput = registerForm.querySelector('#register-email');
-            const passwordInput = registerForm.querySelector('#register-password');
-            const confirmInput = registerForm.querySelector('#register-password-confirm');
-
-            const email = emailInput?.value.trim() || '';
-            const password = passwordInput?.value || '';
-            const confirm = confirmInput?.value || '';
-
-            if (!email) {
-                showFieldError(emailInput, 'register-email-error', 'Email belum terdaftar');
-                emailInput?.focus();
-                return;
-            }
-
-            if (!password) {
-                showFieldError(passwordInput, 'register-password-error', 'Kata sandi salah');
-                passwordInput?.focus();
-                return;
-            }
-
-            if (password !== confirm) {
-                showFieldError(confirmInput, 'register-password-confirm-error', 'Kata sandi tidak sesuai');
-                confirmInput?.focus();
-                return;
-            }
-
-            closeModal(modal);
-            registerForm.reset();
-        });
-    }
 
     document.addEventListener('change', (e) => {
         const fileInput = e.target.closest('[data-file-input]');

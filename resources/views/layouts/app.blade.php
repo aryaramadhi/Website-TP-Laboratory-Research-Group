@@ -28,7 +28,6 @@
     <x-footer />
 
     <x-login-modal />
-    <x-register-modal />
     <x-research-form id="research-modal" />
     <x-research-form id="edit-research-modal" :isEdit="true" />
     <x-publication-form id="publication-modal" />

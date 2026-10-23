@@ -3,8 +3,5 @@
         <button type="button" class="profile-dropdown__btn" data-auth-action="login">
             Masuk
         </button>
-        <button type="button" class="profile-dropdown__btn" data-auth-action="register">
-            Daftar
-        </button>
     </div>
 </div>
