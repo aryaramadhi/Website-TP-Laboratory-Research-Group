@@ -8,6 +8,7 @@ import { initResearchPage } from './pages/research';
 import { initPublicationPage } from './pages/publication';
 import { initNewsPage } from './pages/news';
 import { initAchievementPage } from './pages/achievement';
+import { initHomePage } from './pages/home';
 
 initNavbar();
 initModal();
@@ -18,4 +19,5 @@ initResearchPage();
 initPublicationPage();
 initNewsPage();
 initAchievementPage();
+initHomePage();
 

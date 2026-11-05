@@ -559,7 +559,10 @@
 
 .achievement-grid .card-empty-state,
 .achievement-grid .card-error-state,
-.achievement-grid .card-loading-state {
+.achievement-grid .card-loading-state,
+.home-achievements__grid .card-empty-state,
+.home-achievements__grid .card-error-state,
+.home-achievements__grid .card-loading-state {
     grid-column: 1 / -1;
 }
 
