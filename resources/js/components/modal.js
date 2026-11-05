@@ -15,6 +15,8 @@ import { ApiError, extractData } from '../api/client.js';
 import { getAlumniList } from '../api/alumni.js';
 import { createResearch, updateResearch, deleteResearch } from '../api/research.js';
 import { createNews, updateNews, deleteNews } from '../api/news.js';
+import { createPublication, updatePublication, deletePublication } from '../api/publication.js';
+import { createAchievement, updateAchievement, deleteAchievement } from '../api/achievement.js';
 
 export function updateAuthUI(admin) {
     const isAuthenticated = Boolean(admin && hasAuthToken());
@@ -314,6 +316,19 @@ export const CMS_FIELD_MAPPINGS = {
         tanggal_rilis: 'date',
         gambar_pendukung: 'image',
     },
+    publication: {
+        judul_karya_hibah: 'title',
+        nama_jurnal_skema: 'journal',
+        tahun: 'year',
+        tautan_eksternal: 'doi',
+    },
+    achievement: {
+        nama_prestasi: 'title',
+        anggota_alumni_id: 'author',
+        tahun_diperoleh: 'date',
+        deskripsi: 'content',
+        dokumentasi_bukti: 'image',
+    },
 };
 
 export function buildResearchPayload(form, isEdit = false) {
@@ -385,6 +400,89 @@ export function buildNewsPayload(form, isEdit = false) {
     return payload;
 }
 
+export function buildPublicationPayload(form, isEdit = false) {
+    const admin = getAdminUser();
+    const adminId = admin?.admin_id ?? admin?.id;
+
+    const title = form?.querySelector('[name="title"]')?.value?.trim() || '';
+    const journal = form?.querySelector('[name="journal"]')?.value?.trim() || null;
+    const rawYear = form?.querySelector('[name="year"]')?.value?.trim() || '';
+    const parsedYear = rawYear && !isNaN(parseInt(rawYear, 10)) ? parseInt(rawYear, 10) : null;
+    const rawDoi = form?.querySelector('[name="doi"]')?.value?.trim() || '';
+    const doi = rawDoi ? rawDoi : null;
+
+    const payload = {
+        judul_karya_hibah: title,
+        nama_jurnal_skema: journal,
+        tahun: parsedYear,
+        tautan_eksternal: doi,
+    };
+
+    if (!isEdit) {
+        payload.jenis = null;
+        payload.deskripsi_pencapaian = null;
+        payload.proyek_id = null;
+    }
+
+    if (adminId !== undefined && adminId !== null && adminId !== '') {
+        payload.admin_id = Number(adminId);
+    }
+
+    return payload;
+}
+
+export function buildAchievementPayload(form, isEdit = false) {
+    const title = form?.querySelector('[name="title"]')?.value?.trim() || '';
+    const rawAuthor = form?.querySelector('[name="anggota_alumni_id"]')?.value?.trim() ||
+        form?.querySelector('[name="author"]')?.value?.trim() || '';
+    const alumniId = rawAuthor && !isNaN(parseInt(rawAuthor, 10)) ? parseInt(rawAuthor, 10) : null;
+
+    const rawDate = form?.querySelector('[name="date"]')?.value?.trim() || '';
+    let parsedYear = null;
+    if (rawDate) {
+        const yearPart = rawDate.split('-')[0].trim();
+        if (yearPart && !isNaN(parseInt(yearPart, 10))) {
+            parsedYear = parseInt(yearPart, 10);
+        }
+    }
+
+    const content = form?.querySelector('[name="content"]')?.value?.trim() || null;
+
+    const modal = form?.closest ? form.closest('[data-modal]') : null;
+    const imageInput = form?.querySelector ? form.querySelector('[name="image"]') : null;
+
+    let customImageString = null;
+    if (imageInput && imageInput.type !== 'file' && typeof imageInput.value === 'string' && imageInput.value.trim()) {
+        customImageString = imageInput.value.trim();
+    }
+
+    const payload = {
+        nama_prestasi: title,
+        deskripsi: content,
+        tahun_diperoleh: parsedYear,
+    };
+
+    if (alumniId !== null) {
+        payload.anggota_alumni_id = alumniId;
+    }
+
+    if (!isEdit) {
+        payload.penyelenggara = null;
+        payload.tingkat = null;
+        payload.proyek_id = null;
+        payload.dokumentasi_bukti = customImageString || null;
+    } else {
+        const existingImage = modal?.dataset?.editingImage?.trim();
+        if (customImageString) {
+            payload.dokumentasi_bukti = customImageString;
+        } else if (existingImage) {
+            payload.dokumentasi_bukti = existingImage;
+        }
+    }
+
+    return payload;
+}
+
 export function handleCmsValidationErrors(form, modal, modalId, resourceType, errors) {
     if (!errors || typeof errors !== 'object') return;
 
@@ -397,8 +495,13 @@ export function handleCmsValidationErrors(form, modal, modalId, resourceType, er
         const frontendFieldName = mapping[backendField];
 
         if (frontendFieldName) {
-            const inputField = form?.querySelector(`[name="${frontendFieldName}"]`);
-            const errorContainerId = `${modalId}-${frontendFieldName}-error`;
+            const inputField = form?.querySelector(`[name="${frontendFieldName}"]`) ||
+                (frontendFieldName === 'author' ? form?.querySelector('[name="anggota_alumni_id"]') : null) ||
+                (frontendFieldName === 'anggota_alumni_id' ? form?.querySelector('[name="author"]') : null);
+            const errorContainerId = (frontendFieldName === 'anggota_alumni_id' || frontendFieldName === 'author')
+                ? `${modalId}-author-error`
+                : `${modalId}-${frontendFieldName}-error`;
+
             if (inputField) {
                 showFieldError(inputField, errorContainerId, message);
                 hasFieldErrors = true;
@@ -470,6 +573,7 @@ export function openModal(modalId) {
     }
 
     if (modalId === 'achievement-modal') {
+        delete modal.dataset.editingImage;
         const form = modal.querySelector('form');
         if (form) {
             form.reset();
@@ -546,7 +650,7 @@ export function populateEditModal(modalId, item, editBtn) {
             journal: item.dataset.itemJournal || data.journal || '',
             year: item.dataset.itemYear || data.year || '',
             doi: item.dataset.itemDoi || data.doi || '',
-            image: item.dataset.itemImage || data.image || item.querySelector?.('img.news-card__image')?.getAttribute('src') || '',
+            image: item.dataset.itemImage || data.image || item.querySelector?.('img.news-card__image, img.achievement-card__image, .achievement-card img')?.getAttribute('src') || '',
             supportingImage1: item.dataset.itemSupportingImage1 || data.supporting_image_1 || '',
             supportingImage2: item.dataset.itemSupportingImage2 || data.supporting_image_2 || '',
         };
@@ -656,6 +760,7 @@ export function populateEditModal(modalId, item, editBtn) {
     // Prestasi Form Modal
     if (modalId === 'edit-achievement-modal') {
         modal.dataset.editingId = data.id || '';
+        modal.dataset.editingImage = data.image || '';
         const idInput = modal.querySelector('input[name="achievement_id"]');
         if (idInput) idInput.value = data.id || '';
 
@@ -892,62 +997,59 @@ export function initModal() {
                     return;
                 }
 
+                if (confirmDeleteBtn.disabled) return;
+
                 const originalBtnText = confirmDeleteBtn.textContent;
                 confirmDeleteBtn.disabled = true;
                 confirmDeleteBtn.textContent = 'Menghapus...';
 
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                (async () => {
+                    try {
+                        await deleteAchievement(achievementId);
 
-                fetch(`/admin/achievements/${achievementId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken || '',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                })
-                .then(async (response) => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        alert(data.message || 'Gagal menghapus prestasi & pencapaian.');
-                        return;
-                    }
+                        const confirmModal = confirmDeleteBtn.closest('[data-modal]');
+                        if (confirmModal) closeModal(confirmModal);
 
-                    const confirmModal = confirmDeleteBtn.closest('[data-modal]');
-                    if (confirmModal) closeModal(confirmModal);
-
-                    if (activeEditModal) {
-                        closeModal(activeEditModal);
-                        activeEditModal = null;
-                    }
-
-                    // If currently on detail page, redirect to achievement list
-                    if (window.location.pathname.startsWith('/prestasi/')) {
-                        window.location.href = data.redirect || '/prestasi';
-                    } else {
-                        // On list or home page, remove item or reload
-                        if (activeEditingItem) {
-                            activeEditingItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                            activeEditingItem.style.opacity = '0';
-                            activeEditingItem.style.transform = 'scale(0.96)';
-                            setTimeout(() => {
-                                activeEditingItem?.remove();
-                                activeEditingItem = null;
-                                window.location.reload();
-                            }, 300);
-                        } else {
-                            window.location.reload();
+                        if (activeEditModal) {
+                            closeModal(activeEditModal);
+                            activeEditModal = null;
                         }
+
+                        if (window.location.pathname.startsWith('/prestasi/')) {
+                            window.location.href = '/prestasi';
+                        } else {
+                            if (activeEditingItem) {
+                                activeEditingItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                                activeEditingItem.style.opacity = '0';
+                                activeEditingItem.style.transform = 'scale(0.96)';
+                                setTimeout(() => {
+                                    activeEditingItem?.remove();
+                                    activeEditingItem = null;
+                                    window.location.reload();
+                                }, 300);
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                    } catch (err) {
+                        if (err instanceof ApiError && err.status === 401) {
+                            const confirmModal = confirmDeleteBtn.closest('[data-modal]');
+                            if (confirmModal) closeModal(confirmModal);
+                            if (activeEditModal) {
+                                closeModal(activeEditModal);
+                                activeEditModal = null;
+                            }
+                            return;
+                        }
+                        const errorMsg = (err instanceof ApiError && (err.data?.message || err.message))
+                            ? (err.data?.message || err.message)
+                            : 'Gagal menghapus prestasi & pencapaian.';
+                        alert(errorMsg);
+                    } finally {
+                        confirmDeleteBtn.disabled = false;
+                        confirmDeleteBtn.textContent = originalBtnText;
                     }
-                })
-                .catch(() => {
-                    alert('Terjadi kesalahan jaringan saat menghapus prestasi & pencapaian.');
-                })
-                .finally(() => {
-                    confirmDeleteBtn.disabled = false;
-                    confirmDeleteBtn.textContent = originalBtnText;
-                });
+                })();
 
                 return;
             }
@@ -965,64 +1067,63 @@ export function initModal() {
                     return;
                 }
 
+                if (confirmDeleteBtn.disabled) return;
+
                 const originalBtnText = confirmDeleteBtn.textContent;
                 confirmDeleteBtn.disabled = true;
                 confirmDeleteBtn.textContent = 'Menghapus...';
 
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                (async () => {
+                    try {
+                        await deletePublication(publicationId);
 
-                fetch(`/admin/publications/${publicationId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken || '',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                })
-                .then(async (response) => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        alert(data.message || 'Gagal menghapus publikasi.');
-                        return;
-                    }
+                        const confirmModal = confirmDeleteBtn.closest('[data-modal]');
+                        if (confirmModal) closeModal(confirmModal);
 
-                    const confirmModal = confirmDeleteBtn.closest('[data-modal]');
-                    if (confirmModal) closeModal(confirmModal);
+                        if (activeEditModal) {
+                            closeModal(activeEditModal);
+                            activeEditModal = null;
+                        }
 
-                    if (activeEditModal) {
-                        closeModal(activeEditModal);
-                        activeEditModal = null;
-                    }
+                        if (activeEditingItem) {
+                            const accordionItem = activeEditingItem.closest('[data-accordion-item]');
+                            const list = activeEditingItem.closest('.publication-accordion__list');
 
-                    if (activeEditingItem) {
-                        const accordionItem = activeEditingItem.closest('[data-accordion-item]');
-                        const list = activeEditingItem.closest('.publication-accordion__list');
+                            activeEditingItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                            activeEditingItem.style.opacity = '0';
+                            activeEditingItem.style.transform = 'scale(0.96)';
 
-                        activeEditingItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                        activeEditingItem.style.opacity = '0';
-                        activeEditingItem.style.transform = 'scale(0.96)';
+                            setTimeout(() => {
+                                activeEditingItem?.remove();
+                                activeEditingItem = null;
 
-                        setTimeout(() => {
-                            activeEditingItem?.remove();
-                            activeEditingItem = null;
-
-                            if (list && list.querySelectorAll('.publication-accordion__entry').length === 0 && accordionItem) {
-                                accordionItem.remove();
-                            }
+                                if (list && list.querySelectorAll('.publication-accordion__entry').length === 0 && accordionItem) {
+                                    accordionItem.remove();
+                                }
+                                window.location.reload();
+                            }, 300);
+                        } else {
                             window.location.reload();
-                        }, 300);
-                    } else {
-                        window.location.reload();
+                        }
+                    } catch (err) {
+                        if (err instanceof ApiError && err.status === 401) {
+                            const confirmModal = confirmDeleteBtn.closest('[data-modal]');
+                            if (confirmModal) closeModal(confirmModal);
+                            if (activeEditModal) {
+                                closeModal(activeEditModal);
+                                activeEditModal = null;
+                            }
+                            return;
+                        }
+                        const errorMsg = (err instanceof ApiError && (err.data?.message || err.message))
+                            ? (err.data?.message || err.message)
+                            : 'Gagal menghapus publikasi.';
+                        alert(errorMsg);
+                    } finally {
+                        confirmDeleteBtn.disabled = false;
+                        confirmDeleteBtn.textContent = originalBtnText;
                     }
-                })
-                .catch(() => {
-                    alert('Terjadi kesalahan jaringan saat menghapus publikasi.');
-                })
-                .finally(() => {
-                    confirmDeleteBtn.disabled = false;
-                    confirmDeleteBtn.textContent = originalBtnText;
-                });
+                })();
 
                 return;
             }
@@ -1246,9 +1347,9 @@ export function initModal() {
         if (textEl) {
             if (fileInput.files && fileInput.files.length > 0) {
                 if (fileInput.files.length === 1) {
-                    textEl.textContent = fileInput.files[0].name;
+                    textEl.textContent = `${fileInput.files[0].name} (Upload file belum didukung REST API)`;
                 } else {
-                    textEl.textContent = `${fileInput.files.length} file dipilih`;
+                    textEl.textContent = `${fileInput.files.length} file dipilih (Upload file belum didukung REST API)`;
                 }
                 textEl.style.color = 'var(--color-primary-700)';
             } else {
@@ -1262,24 +1363,14 @@ export function initModal() {
         }
     });
 
-    const ADMIN_RESOURCES = {
-        achievement: {
-            basePath: '/admin/achievements',
-            missingIdMessage: 'ID Prestasi & pencapaian tidak ditemukan.',
-        },
-        publication: {
-            basePath: '/admin/publications',
-            missingIdMessage: 'ID Publikasi tidak ditemukan.',
-        },
-    };
+    const validResources = ['research', 'news', 'publication', 'achievement'];
 
     document.addEventListener('submit', async (e) => {
         const form = e.target.closest('[data-admin-form]');
         if (!form) return;
 
         const resourceType = form.dataset.adminForm;
-        const config = ADMIN_RESOURCES[resourceType];
-        if (!config && resourceType !== 'research' && resourceType !== 'news') return;
+        if (!validResources.includes(resourceType)) return;
 
         e.preventDefault();
 
@@ -1296,84 +1387,34 @@ export function initModal() {
             form.querySelector(`input[name="${resourceType}_id"]`)?.value ||
             (activeEditingItem && activeEditingItem.dataset.itemType === resourceType ? activeEditingItem.dataset.itemId : null);
 
-        if (resourceType === 'research' || resourceType === 'news') {
-            if (isEdit && !editingId) {
-                showModalGeneralError(modal, modalId, resourceType === 'research' ? 'ID Riset tidak ditemukan.' : 'ID Berita tidak ditemukan.');
-                return;
-            }
+        if (isEdit && !editingId) {
+            const missingIdMessages = {
+                research: 'ID Riset tidak ditemukan.',
+                news: 'ID Berita tidak ditemukan.',
+                publication: 'ID Publikasi tidak ditemukan.',
+                achievement: 'ID Prestasi & pencapaian tidak ditemukan.',
+            };
+            showModalGeneralError(modal, modalId, missingIdMessages[resourceType] || 'ID data tidak ditemukan.');
+            return;
+        }
 
-            const payload = resourceType === 'research'
-                ? buildResearchPayload(form, isEdit)
-                : buildNewsPayload(form, isEdit);
+        let payload;
+        if (resourceType === 'research') {
+            payload = buildResearchPayload(form, isEdit);
+        } else if (resourceType === 'news') {
+            payload = buildNewsPayload(form, isEdit);
+        } else if (resourceType === 'publication') {
+            payload = buildPublicationPayload(form, isEdit);
+        } else if (resourceType === 'achievement') {
+            payload = buildAchievementPayload(form, isEdit);
+        }
 
+        if (resourceType !== 'achievement') {
             if (!payload.admin_id || isNaN(payload.admin_id)) {
                 showModalGeneralError(modal, modalId, 'Sesi admin tidak valid atau ID admin tidak ditemukan. Silakan masuk kembali.');
                 return;
             }
-
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Menyimpan...';
-            }
-
-            try {
-                if (resourceType === 'research') {
-                    if (isEdit) {
-                        await updateResearch(editingId, payload);
-                    } else {
-                        await createResearch(payload);
-                    }
-                } else {
-                    if (isEdit) {
-                        await updateNews(editingId, payload);
-                    } else {
-                        await createNews(payload);
-                    }
-                }
-
-                closeModal(modal);
-                if (typeof window !== 'undefined') {
-                    window.location.reload();
-                }
-            } catch (err) {
-                if (err instanceof ApiError) {
-                    if (err.status === 401) {
-                        closeModal(modal);
-                        return;
-                    }
-                    if (err.status === 422 && err.data?.errors) {
-                        handleCmsValidationErrors(form, modal, modalId, resourceType, err.data.errors);
-                        return;
-                    }
-                    const msg = (err.data && err.data.message) || err.message || 'Terjadi kesalahan pada server.';
-                    showModalGeneralError(modal, modalId, msg);
-                    return;
-                }
-                showModalGeneralError(modal, modalId, 'Terjadi kesalahan jaringan. Silakan coba lagi.');
-            } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = originalBtnText;
-                }
-            }
-            return;
         }
-
-        if (!config) return;
-
-        if (isEdit && !editingId) {
-            showModalGeneralError(modal, modalId, config.missingIdMessage);
-            return;
-        }
-
-        const url = isEdit ? `${config.basePath}/${editingId}` : config.basePath;
-        const formData = new FormData(form);
-
-        if (isEdit) {
-            formData.set('_method', 'PUT');
-        }
-
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
         if (submitBtn) {
             submitBtn.disabled = true;
@@ -1381,49 +1422,50 @@ export function initModal() {
         }
 
         try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken || '',
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                credentials: 'same-origin',
-                body: formData,
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                if (response.status === 422 && data.errors) {
-                    for (const [field, messages] of Object.entries(data.errors)) {
-                        const message = messages[0];
-                        let inputField = form.querySelector(`[name="${field}"]`);
-                        let errorId = `${modalId}-${field}-error`;
-
-                        if (field.startsWith('gallery.')) {
-                            inputField = form.querySelector('[name="gallery[]"]');
-                            errorId = `${modalId}-gallery-error`;
-                        }
-
-                        if (inputField) {
-                            showFieldError(inputField, errorId, message);
-                        } else {
-                            showModalGeneralError(modal, modalId, message);
-                        }
-                    }
-                    const firstInvalid = form.querySelector('[aria-invalid="true"]');
-                    firstInvalid?.focus();
-                    return;
+            if (resourceType === 'research') {
+                if (isEdit) {
+                    await updateResearch(editingId, payload);
+                } else {
+                    await createResearch(payload);
                 }
-
-                showModalGeneralError(modal, modalId, data.message || 'Terjadi kesalahan pada server.');
-                return;
+            } else if (resourceType === 'news') {
+                if (isEdit) {
+                    await updateNews(editingId, payload);
+                } else {
+                    await createNews(payload);
+                }
+            } else if (resourceType === 'publication') {
+                if (isEdit) {
+                    await updatePublication(editingId, payload);
+                } else {
+                    await createPublication(payload);
+                }
+            } else if (resourceType === 'achievement') {
+                if (isEdit) {
+                    await updateAchievement(editingId, payload);
+                } else {
+                    await createAchievement(payload);
+                }
             }
 
             closeModal(modal);
-            window.location.href = data.redirect || window.location.href;
+            if (typeof window !== 'undefined') {
+                window.location.reload();
+            }
         } catch (err) {
+            if (err instanceof ApiError) {
+                if (err.status === 401) {
+                    closeModal(modal);
+                    return;
+                }
+                if (err.status === 422 && err.data?.errors) {
+                    handleCmsValidationErrors(form, modal, modalId, resourceType, err.data.errors);
+                    return;
+                }
+                const msg = (err.data && err.data.message) || err.message || 'Terjadi kesalahan pada server.';
+                showModalGeneralError(modal, modalId, msg);
+                return;
+            }
             showModalGeneralError(modal, modalId, 'Terjadi kesalahan jaringan. Silakan coba lagi.');
         } finally {
             if (submitBtn) {
