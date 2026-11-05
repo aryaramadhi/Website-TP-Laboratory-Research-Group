@@ -1,5 +1,5 @@
 import { initNavbar } from './components/navbar';
-import { initModal } from './components/modal';
+import { initModal, initAuthSession } from './components/modal';
 import { initDropdown } from './components/dropdown';
 import { initAccordion } from './components/accordion';
 import { initSlider } from './components/slider';
@@ -15,6 +15,7 @@ initModal();
 initDropdown();
 initAccordion();
 initSlider();
+initAuthSession();
 initResearchPage();
 initPublicationPage();
 initNewsPage();

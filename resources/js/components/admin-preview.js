@@ -1,31 +1,44 @@
 
 const STORAGE_KEY = 'tp-laboratory-admin-preview';
 
-function enableAdminPreview() {
+export function isPreviewActive() {
+    if (typeof window === 'undefined' || !window.sessionStorage) return false;
+    return window.sessionStorage.getItem(STORAGE_KEY) === 'true';
+}
+
+export function enableAdminPreview() {
+    if (typeof window === 'undefined' || !window.sessionStorage) return;
     document.body.classList.add('is-admin');
-    sessionStorage.setItem(STORAGE_KEY, 'true');
-
-    console.info('Admin Preview aktif. Ini hanya simulasi UI lokal.');
+    window.sessionStorage.setItem(STORAGE_KEY, 'true');
+    console.info('Admin Preview aktif (Simulasi visual lokal, bukan autentikasi API).');
 }
 
-function disableAdminPreview() {
+export function disableAdminPreview() {
+    if (typeof window === 'undefined' || !window.sessionStorage) return;
     document.body.classList.remove('is-admin');
-    sessionStorage.removeItem(STORAGE_KEY);
-
-    console.info('Kembali ke mode Visitor.');
+    window.sessionStorage.removeItem(STORAGE_KEY);
+    console.info('Admin Preview nonaktif.');
 }
 
-function initAdminPreview() {
-    if (sessionStorage.getItem(STORAGE_KEY) === 'true') {
-        document.body.classList.add('is-admin');
-    }
-
-    if (import.meta.env.DEV) {
-        window.tpAdminPreview = {
-            enable: enableAdminPreview,
-            disable: disableAdminPreview,
-        };
+export function initAdminPreview() {
+    // Mode preview tidak otomatis mengaktifkan .is-admin pada startup
+    // Status admin dikendalikan oleh sesi API Sanctum
+    if (import.meta.env && import.meta.env.DEV) {
+        if (typeof window !== 'undefined') {
+            window.tpAdminPreview = {
+                enable: enableAdminPreview,
+                disable: disableAdminPreview,
+                isActive: isPreviewActive,
+            };
+        }
     }
 }
 
 initAdminPreview();
+
+export default {
+    isPreviewActive,
+    enableAdminPreview,
+    disableAdminPreview,
+    initAdminPreview,
+};

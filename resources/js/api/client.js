@@ -229,7 +229,13 @@ export async function request(endpoint, options = {}) {
             response,
         });
 
-        if (response.status === 401) {
+        const cleanEndpoint = (typeof endpoint === 'string' ? endpoint : '')
+            .trim()
+            .replace(/^\/+/, '')
+            .replace(/^api\/+/, '');
+        const isLoginRequest = cleanEndpoint === 'login' || cleanEndpoint.startsWith('login?');
+
+        if (response.status === 401 && !isLoginRequest) {
             notifyUnauthorized(apiError);
         }
 

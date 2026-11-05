@@ -1,4 +1,111 @@
-import { closeDropdown } from './dropdown';
+import { closeDropdown } from './dropdown.js';
+import {
+    login,
+    logout,
+    getMe,
+    setAuthToken,
+    removeAuthToken,
+    hasAuthToken,
+    setAdminUser,
+    removeAdminUser,
+    onUnauthorized,
+} from '../api/auth.js';
+import { ApiError, extractData } from '../api/client.js';
+
+export function updateAuthUI(admin) {
+    const isAuthenticated = Boolean(admin && hasAuthToken());
+
+    if (typeof document === 'undefined') return;
+
+    if (isAuthenticated) {
+        document.body.classList.add('is-admin');
+    } else {
+        document.body.classList.remove('is-admin');
+    }
+
+    const dropdown = document.querySelector('[data-profile-dropdown]');
+    if (!dropdown) return;
+
+    const guestState = dropdown.querySelector('[data-auth-guest]');
+    const authState = dropdown.querySelector('[data-auth-authenticated]');
+    const emailEl = dropdown.querySelector('[data-admin-email]');
+
+    if (isAuthenticated) {
+        if (guestState) guestState.style.display = 'none';
+        if (authState) {
+            authState.style.display = 'flex';
+            if (emailEl) {
+                emailEl.textContent = admin.email || admin.nama_lengkap || 'Admin';
+            }
+        }
+    } else {
+        if (guestState) guestState.style.display = 'flex';
+        if (authState) authState.style.display = 'none';
+        if (emailEl) emailEl.textContent = '';
+    }
+}
+
+export function handleLogoutCleanup() {
+    removeAuthToken();
+    removeAdminUser();
+    updateAuthUI(null);
+}
+
+export async function handleLogout() {
+    closeDropdown();
+
+    try {
+        if (hasAuthToken()) {
+            await logout();
+        }
+    } catch (err) {
+        console.warn('Logout request failed, continuing local cleanup:', err?.message || err);
+    } finally {
+        handleLogoutCleanup();
+    }
+}
+
+let unauthorizedRegistered = false;
+
+export async function initAuthSession() {
+    if (!unauthorizedRegistered) {
+        unauthorizedRegistered = true;
+        onUnauthorized(() => {
+            handleLogoutCleanup();
+        });
+    }
+
+    if (!hasAuthToken()) {
+        handleLogoutCleanup();
+        return false;
+    }
+
+    try {
+        const response = await getMe();
+        const adminData = extractData(response);
+        if (adminData && typeof adminData === 'object') {
+            setAdminUser(adminData);
+            updateAuthUI(adminData);
+            return true;
+        } else {
+            handleLogoutCleanup();
+            return false;
+        }
+    } catch (err) {
+        const is401 = (err instanceof ApiError && err.status === 401) ||
+                      (err && err.status === 401);
+
+        if (is401) {
+            handleLogoutCleanup();
+        } else {
+            // Network error (status 0), HTTP 5xx, or temporary connection glitch:
+            // Do not delete token or admin data from sessionStorage.
+            // Ensure .is-admin is not active during startup verification failure.
+            updateAuthUI(null);
+        }
+        return false;
+    }
+}
 
 export function showFieldError(input, errorContainerId, message) {
     if (!input) return;
@@ -659,6 +766,11 @@ export function initModal() {
                 openModal('login-modal');
                 return;
             }
+            if (action === 'logout') {
+                e.preventDefault();
+                handleLogout();
+                return;
+            }
         }
 
         // Generic open modal button
@@ -753,7 +865,6 @@ export function initModal() {
                 return;
             }
 
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const originalBtnText = submitBtn ? submitBtn.textContent : 'Masuk';
             if (submitBtn) {
                 submitBtn.disabled = true;
@@ -761,40 +872,52 @@ export function initModal() {
             }
 
             try {
-                const response = await fetch('/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken || '',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ email, password }),
-                });
+                const response = await login({ email, password });
+                const token = response?.access_token;
+                const admin = response?.admin;
 
-                const data = await response.json();
+                if (!token) {
+                    showFieldError(passwordInput, 'login-password-error', 'Respon server tidak memuat token autentikasi.');
+                    return;
+                }
 
-                if (!response.ok) {
-                    if (data.errors) {
+                setAuthToken(token);
+                if (admin) {
+                    setAdminUser(admin);
+                }
+                updateAuthUI(admin || { email });
+
+                loginForm.reset();
+                if (modal) {
+                    closeModal(modal);
+                }
+            } catch (err) {
+                if (err instanceof ApiError) {
+                    const status = err.status;
+                    const data = err.data;
+
+                    if (status === 422 && data && data.errors) {
                         if (data.errors.email) {
                             showFieldError(emailInput, 'login-email-error', data.errors.email[0]);
                             emailInput?.focus();
                         } else if (data.errors.password) {
                             showFieldError(passwordInput, 'login-password-error', data.errors.password[0]);
                             passwordInput?.focus();
+                        } else {
+                            showFieldError(passwordInput, 'login-password-error', data.message || 'Validasi formulir gagal.');
                         }
-                    } else if (data.message) {
-                        showFieldError(passwordInput, 'login-password-error', data.message);
+                    } else if (status === 401) {
+                        const msg = (data && data.message) ? data.message : 'Kredensial login tidak valid.';
+                        showFieldError(passwordInput, 'login-password-error', msg);
+                        passwordInput?.focus();
+                    } else {
+                        const msg = (data && data.message) || err.message || 'Terjadi kesalahan saat masuk.';
+                        showFieldError(passwordInput, 'login-password-error', msg);
                         passwordInput?.focus();
                     }
-                    return;
+                } else {
+                    showFieldError(passwordInput, 'login-password-error', 'Terjadi kesalahan jaringan. Silakan coba lagi.');
                 }
-
-                // Authentication succeeded: redirect or reload to apply server session
-                window.location.href = data.redirect || '/';
-            } catch (err) {
-                showFieldError(passwordInput, 'login-password-error', 'Terjadi kesalahan jaringan. Silakan coba lagi.');
             } finally {
                 if (submitBtn) {
                     submitBtn.disabled = false;
