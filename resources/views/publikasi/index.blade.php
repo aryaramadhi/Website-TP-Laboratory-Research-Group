@@ -5,30 +5,45 @@
 @section('page', 'publication')
 
 @php
-    $publicationsByYear = collect([
-        2026 => collect([
-            (object) ['id' => 1, 'title' => 'Design Optimization and Energy Potential of BIPV Facades in Tropical Climate Regimes', 'author' => 'Dr.Eng. Tika Erna Putri, S.Si., M.Sc., Budi Santoso', 'journal' => 'IEEE International Conference on Energy Conversion and Applied Technology', 'year' => 2026, 'link' => '#', 'doi' => null, 'description' => 'Publikasi mengenai optimasi desain dan potensi energi fasad BIPV pada iklim tropis.'],
-            (object) ['id' => 2, 'title' => 'Building Integrated Photovoltaic (BIPV): Simulation and Performance Analysis on Teaching Industry Learning Center Building', 'author' => 'Dr.Eng. Tika Erna Putri, S.Si., M.Sc., Ahmad Fauzi, Nurul Hidayah', 'journal' => 'International Journal of Renewable Energy Development (IJRED)', 'year' => 2026, 'link' => '#', 'doi' => null, 'description' => 'Analisis simulasi dan performa sistem BIPV pada Teaching Industry Learning Center.'],
-        ]),
-        2025 => collect([
-            (object) ['id' => 3, 'title' => 'Comparative Lifecycle Cost and Payback Period Analysis of Rooftop and Facade PV Systems', 'author' => 'Dr.Eng. Tika Erna Putri, S.Si., M.Sc., Hendra Wijaya', 'journal' => 'Renewable and Sustainable Energy Reviews', 'year' => 2025, 'link' => '#', 'doi' => null, 'description' => 'Perbandingan biaya siklus hidup dan periode pengembalian sistem PV.'],
-            (object) ['id' => 4, 'title' => 'Thermal-Electrical Modeling of Building-Integrated Photovoltaic Systems under High Solar Irradiance', 'author' => 'Dr.Eng. Tika Erna Putri, S.Si., M.Sc., Siti Rahmawati', 'journal' => 'Solar Energy Materials and Solar Cells', 'year' => 2025, 'link' => '#', 'doi' => null, 'description' => 'Pemodelan termal-elektrik sistem BIPV pada iradiasi matahari tinggi.'],
-        ]),
-        2024 => collect([
-            (object) ['id' => 5, 'title' => 'Experimental Investigation of Dust Accumulation and Mitigation Strategies on Colored Glass BIPV', 'author' => 'Dr.Eng. Tika Erna Putri, S.Si., M.Sc., Rian Ardiansyah', 'journal' => 'Applied Energy', 'year' => 2024, 'link' => '#', 'doi' => null, 'description' => 'Investigasi eksperimental akumulasi debu dan strategi mitigasi pada BIPV kaca berwarna.'],
-        ]),
-    ]);
+    $hasSsrData = isset($publicationsByYear) && $publicationsByYear->isNotEmpty();
 @endphp
 
 @section('content')
     <x-hero title="Publikasi" image="images/publication/hero-bg.jpg" />
 
-    <div class="container publication-page">
+    <div class="container publication-page" data-publication-page>
         <div class="publication-page__wrapper">
             <div class="admin-action-bar">
                 <x-admin-add-button modal="publication-modal">Tambah Publikasi</x-admin-add-button>
             </div>
-            <x-publication-accordion :publications-by-year="$publicationsByYear" />
+
+            @if ($hasSsrData)
+                <x-publication-accordion :publications-by-year="$publicationsByYear" />
+            @else
+                <div class="card-loading-state" data-publication-state="loading">
+                    <div class="loading-spinner" aria-hidden="true"></div>
+                    <p>Memuat daftar publikasi dan hibah...</p>
+                </div>
+
+                <div class="card-empty-state" data-publication-state="empty" style="display: none;">
+                    <p>Belum ada publikasi atau hibah yang dipublikasikan.</p>
+                </div>
+
+                <div class="card-error-state" data-publication-state="error" style="display: none;">
+                    <p class="card-error-state__message" data-publication-error-message>Gagal memuat daftar publikasi.</p>
+                    <button type="button" class="button btn-retry" data-publication-retry>Coba Lagi</button>
+                </div>
+
+                <noscript>
+                    <div class="card-empty-state">
+                        <p>Aktifkan JavaScript untuk melihat daftar publikasi secara dinamis.</p>
+                    </div>
+                </noscript>
+
+                <div class="accordion publication-accordion" data-accordion data-publication-accordion style="display: none;">
+                    {{-- Dynamically populated by publication.js --}}
+                </div>
+            @endif
         </div>
     </div>
 @endsection
