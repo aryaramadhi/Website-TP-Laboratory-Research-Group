@@ -545,7 +545,10 @@
 
 .research-detail .card-empty-state,
 .research-detail .card-error-state,
-.research-detail .card-loading-state {
+.research-detail .card-loading-state,
+.news-detail .card-empty-state,
+.news-detail .card-error-state,
+.news-detail .card-loading-state {
     max-width: 1160px;
     margin-left: auto;
     margin-right: auto;

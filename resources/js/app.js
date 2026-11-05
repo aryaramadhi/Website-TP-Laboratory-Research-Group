@@ -6,6 +6,7 @@ import { initSlider } from './components/slider';
 import './components/admin-preview';
 import { initResearchPage } from './pages/research';
 import { initPublicationPage } from './pages/publication';
+import { initNewsPage } from './pages/news';
 
 initNavbar();
 initModal();
@@ -14,4 +15,5 @@ initAccordion();
 initSlider();
 initResearchPage();
 initPublicationPage();
+initNewsPage();
 
