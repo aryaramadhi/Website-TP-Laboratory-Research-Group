@@ -7,6 +7,7 @@ import './components/admin-preview';
 import { initResearchPage } from './pages/research';
 import { initPublicationPage } from './pages/publication';
 import { initNewsPage } from './pages/news';
+import { initAchievementPage } from './pages/achievement';
 
 initNavbar();
 initModal();
@@ -16,4 +17,5 @@ initSlider();
 initResearchPage();
 initPublicationPage();
 initNewsPage();
+initAchievementPage();
 

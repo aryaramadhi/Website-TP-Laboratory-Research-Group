@@ -1,52 +1,30 @@
 @extends('layouts.app')
 
 @php
-    $itemTitle = $achievement?->title ?? 'Building Integrated Photovoltaic (BPIV): Menyatukan estetika bangunan dan sinar surya – Inovasi mandiri energi hemat lahan';
-    $itemDate = $achievement?->date ? $achievement->date->translatedFormat('d F Y') : '17 September 2026';
-    $itemAuthor = $achievement?->author ?? 'Dr. Eng. Tika Erna Putri, S.Si., M.Sc.';
+    $hasSsrData = !empty($achievement);
+    $itemTitle = $achievement?->title ?? 'Detail Prestasi & Pencapaian';
+    $itemDate = $achievement?->date ? $achievement->date->translatedFormat('d F Y') : '';
+    $itemAuthor = $achievement?->author ?? 'TP Laboratory Research Group';
     $itemImage = $achievement?->main_image ?? 'images/achievements/detail-featured.jpg';
-    $itemExcerpt = $achievement?->excerpt ?? 'Prestasi dan capaian riset mengenai implementasi teknologi Building-Integrated Photovoltaics (BIPV) oleh kelompok riset TP Laboratory.';
-
-    // G1: Main Image
-    $g1Url = $achievement?->image_url ?? asset($itemImage);
-
-    // G2 & G3 resolution with existing data fallback:
-    $g2Image = $achievement?->images->firstWhere('sort_order', 1);
-    $g3Image = $achievement?->images->firstWhere('sort_order', 2);
-    if (!$g2Image && !$g3Image && $achievement && $achievement->images->isNotEmpty()) {
-        $g2Image = $achievement->images->get(0);
-        $g3Image = $achievement->images->get(1);
-    }
-
-    $g2Url = $g2Image?->image_url;
-    $g3Url = $g3Image?->image_url;
-
-    // Fallback matrix:
-    // Slot Left: always G2 if available, else G1
-    // Slot Right: always G3 if available, else G1
-    $slotLeft = !empty($g2Url) ? $g2Url : $g1Url;
-    $slotLeftAlt = !empty($g2Url) ? ($g2Image->caption ?? ($itemTitle . ' - Gambar Pendukung 1')) : $itemTitle;
-
-    $slotRight = !empty($g3Url) ? $g3Url : $g1Url;
-    $slotRightAlt = !empty($g3Url) ? ($g3Image->caption ?? ($itemTitle . ' - Gambar Pendukung 2')) : $itemTitle;
+    $itemExcerpt = $achievement?->excerpt ?? '';
 @endphp
 
-@section('title', $itemTitle . ' | TP Laboratory')
-@section('description', $itemExcerpt)
+@section('title', ($hasSsrData && $itemTitle ? $itemTitle . ' | ' : '') . 'Prestasi & Pencapaian | TP Laboratory')
+@section('description', $itemExcerpt ?: 'Prestasi, penghargaan, dan pencapaian TP Laboratory Research Group.')
 @section('page', 'achievement')
 
 @section('content')
     <x-hero title="Prestasi & Pencapaian" image="images/achievements/detail-hero-bg.jpg" />
 
-    <div class="container achievement-detail">
-        <div class="admin-detail-action-bar">
+    <div class="container achievement-detail" data-achievement-detail data-achievement-id="{{ request()->route('id') }}">
+        <div class="admin-detail-action-bar" data-achievement-detail-action @if (!$hasSsrData) style="display: none;" @endif>
             <button
                 type="button"
                 class="button admin-edit-action-btn"
                 data-open-modal="edit-achievement-modal"
                 aria-label="Edit Prestasi & Pencapaian"
             >
-                <span>Edit Prestasi & Pencapaian</span>
+                <span>Edit Prestasi &amp; Pencapaian</span>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                     <path d="M15 5l4 4"></path>
@@ -54,156 +32,78 @@
             </button>
         </div>
 
+        @if (!$hasSsrData)
+            <div class="card-loading-state" data-achievement-detail-loading>
+                <div class="loading-spinner" aria-hidden="true"></div>
+                <p>Memuat detail prestasi &amp; pencapaian...</p>
+            </div>
+
+            <div class="card-error-state" data-achievement-detail-error style="display: none;">
+                <p class="card-error-state__message" data-achievement-detail-error-message>Gagal memuat detail prestasi.</p>
+                <button type="button" class="button btn-retry" data-achievement-detail-retry style="display: none;">Coba Lagi</button>
+            </div>
+
+            <noscript>
+                <div class="card-empty-state">
+                    <p>Aktifkan JavaScript untuk melihat detail prestasi &amp; pencapaian.</p>
+                </div>
+            </noscript>
+        @endif
+
         <article class="achievement-detail__card editable-item"
+            data-achievement-detail-card
+            @if (!$hasSsrData) style="display: none;" @endif
             data-item-id="{{ $achievement?->id }}"
             data-item-type="achievement"
             data-item-title="{{ $itemTitle }}"
             data-item-author="{{ $itemAuthor }}"
-            data-item-date="{{ $achievement?->date?->format('Y-m-d') ?? '2026-09-17' }}"
+            data-item-date="{{ $achievement?->date?->format('Y-m-d') ?? '' }}"
             data-item-content="{{ $achievement?->content ?? $itemExcerpt }}"
             data-item-description="{{ $achievement?->content ?? $itemExcerpt }}"
-            data-item-supporting-image-1="{{ $g2Image ? $g2Image->image_url : '' }}"
-            data-item-supporting-image-2="{{ $g3Image ? $g3Image->image_url : '' }}"
+            data-item-supporting-image-1=""
+            data-item-supporting-image-2=""
         >
             <div class="achievement-detail__featured">
                 <img
-                    src="{{ $achievement?->image_url ?? asset($itemImage) }}"
+                    src="{{ $achievement?->image_url ?? asset('images/achievements/detail-featured.jpg') }}"
                     alt="{{ $itemTitle }}"
                     class="achievement-detail__featured-img"
+                    data-achievement-detail-image
                 >
             </div>
 
-            <div class="achievement-detail__body">
-                <h1 class="achievement-detail__title">
-                    {{ $itemTitle }}
+            <div class="achievement-detail__body" data-achievement-detail-content>
+                <h1 class="achievement-detail__title" data-achievement-detail-title>
+                    {{ $hasSsrData ? $itemTitle : '' }}
                 </h1>
 
                 <div class="achievement-detail__meta">
                     <div class="achievement-detail__meta-item">
                         <img src="{{ asset('images/icons/calendar.png') }}" alt="" class="achievement-detail__meta-icon" aria-hidden="true">
-                        <span>{{ $itemDate }}</span>
+                        <span data-achievement-detail-date>{{ $itemDate }}</span>
                     </div>
-                    <div class="achievement-detail__meta-item">
+                    <div class="achievement-detail__meta-item" data-achievement-detail-author-wrapper>
                         <img src="{{ asset('images/icons/author.png') }}" alt="" class="achievement-detail__meta-icon" aria-hidden="true">
-                        <span>Oleh: {{ $itemAuthor }}</span>
+                        <span data-achievement-detail-author>{{ $itemAuthor ? 'Oleh: ' . $itemAuthor : '' }}</span>
                     </div>
                 </div>
 
-                @if ($achievement && !empty($achievement->content))
-                    @php
-                        $hasMarker = str_contains($achievement->content, '[[ACHIEVEMENT_IMAGES]]');
-                    @endphp
-
-                    @if ($hasMarker)
-                        @php
-                            [$beforeMarker, $afterMarker] = explode('[[ACHIEVEMENT_IMAGES]]', $achievement->content, 2);
-                            $beforeParagraphs = array_values(array_filter(explode("\n\n", trim($beforeMarker)), fn($p) => trim($p) !== ''));
-                            $afterParagraphs = array_values(array_filter(explode("\n\n", trim($afterMarker)), fn($p) => trim($p) !== ''));
-                        @endphp
-
-                        @foreach ($beforeParagraphs as $paragraph)
-                            <p class="achievement-detail__paragraph">
-                                {!! nl2br(e($paragraph)) !!}
-                            </p>
-                        @endforeach
-
-                        <div class="achievement-detail__gallery">
-                            <div class="achievement-detail__gallery-item achievement-detail__gallery-item--wide">
-                                <img
-                                    src="{{ $slotLeft }}"
-                                    alt="{{ $slotLeftAlt }}"
-                                    class="achievement-detail__gallery-img"
-                                >
-                            </div>
-                            <div class="achievement-detail__gallery-item achievement-detail__gallery-item--narrow">
-                                <img
-                                    src="{{ $slotRight }}"
-                                    alt="{{ $slotRightAlt }}"
-                                    class="achievement-detail__gallery-img"
-                                >
-                            </div>
-                        </div>
-
-                        @foreach ($afterParagraphs as $paragraph)
-                            <p class="achievement-detail__paragraph">
-                                {!! nl2br(e($paragraph)) !!}
-                            </p>
-                        @endforeach
-                    @else
+                <div class="achievement-detail__paragraphs" data-achievement-detail-paragraphs>
+                    @if ($achievement && !empty($achievement->content))
                         @php
                             $paragraphs = array_values(array_filter(explode("\n\n", trim($achievement->content)), fn($p) => trim($p) !== ''));
                         @endphp
-
-                        @foreach ($paragraphs as $index => $paragraph)
+                        @foreach ($paragraphs as $paragraph)
                             <p class="achievement-detail__paragraph">
                                 {!! nl2br(e($paragraph)) !!}
                             </p>
-
-                            @if ($index === 0)
-                                <div class="achievement-detail__gallery">
-                                    <div class="achievement-detail__gallery-item achievement-detail__gallery-item--wide">
-                                        <img
-                                            src="{{ $slotLeft }}"
-                                            alt="{{ $slotLeftAlt }}"
-                                            class="achievement-detail__gallery-img"
-                                        >
-                                    </div>
-                                    <div class="achievement-detail__gallery-item achievement-detail__gallery-item--narrow">
-                                        <img
-                                            src="{{ $slotRight }}"
-                                            alt="{{ $slotRightAlt }}"
-                                            class="achievement-detail__gallery-img"
-                                        >
-                                    </div>
-                                </div>
-                            @endif
                         @endforeach
-
-                        @if (empty($paragraphs))
-                            <div class="achievement-detail__gallery">
-                                <div class="achievement-detail__gallery-item achievement-detail__gallery-item--wide">
-                                    <img
-                                        src="{{ $slotLeft }}"
-                                        alt="{{ $slotLeftAlt }}"
-                                        class="achievement-detail__gallery-img"
-                                    >
-                                </div>
-                                <div class="achievement-detail__gallery-item achievement-detail__gallery-item--narrow">
-                                    <img
-                                        src="{{ $slotRight }}"
-                                        alt="{{ $slotRightAlt }}"
-                                        class="achievement-detail__gallery-img"
-                                    >
-                                </div>
-                            </div>
-                        @endif
+                    @elseif ($achievement && !empty($achievement->excerpt))
+                        <p class="achievement-detail__paragraph">
+                            {!! nl2br(e($achievement->excerpt)) !!}
+                        </p>
                     @endif
-                @else
-                    <p class="achievement-detail__paragraph">
-                        Teknologi Building-Integrated Photovoltaics (BIPV) semakin menarik perhatian di Indonesia dan global sebagai solusi energi terbarukan yang efisien serta estetis. Beberapa kemajuan terbaru menunjukkan implementasi nyata dan potensi pasar yang besar. Lalu, apa sebenarnya BIPV? Bulding Integrated Photovoltaic atau biasa dikenal dengan BIPV adalah sistem PV yang bukan hanya dipasang di atas bangunan, <strong>melainkan menggantikan atau menjadi bagian</strong> dari elemen bangunan seperti atap, kaca façade, dinding.
-                    </p>
-
-                    <div class="achievement-detail__gallery">
-                        <div class="achievement-detail__gallery-item achievement-detail__gallery-item--wide">
-                            <img
-                                src="{{ $slotLeft }}"
-                                alt="{{ $slotLeftAlt }}"
-                                class="achievement-detail__gallery-img"
-                            >
-                        </div>
-                        <div class="achievement-detail__gallery-item achievement-detail__gallery-item--narrow">
-                            <img
-                                src="{{ $slotRight }}"
-                                alt="{{ $slotRightAlt }}"
-                                class="achievement-detail__gallery-img"
-                            >
-                        </div>
-                    </div>
-
-                    <p class="achievement-detail__paragraph">
-                        Di Indonesia sendiri, teknologi BIPV belum begitu populer, namun inovasi ini mulai dikembangkan dengan adanya Salah satu proyek penting: PT PP (Persero) Tbk (PTPP), perusahaan konstruksi BUMN, mencatat “rekor nasional” untuk pembangunan gedung dengan teknologi BIPV di kawasan ibukota baru Indonesia.
-                    </p>
-                @endif
+                </div>
             </div>
         </article>
 

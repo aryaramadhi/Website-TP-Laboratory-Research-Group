@@ -548,10 +548,19 @@
 .research-detail .card-loading-state,
 .news-detail .card-empty-state,
 .news-detail .card-error-state,
-.news-detail .card-loading-state {
+.news-detail .card-loading-state,
+.achievement-detail .card-empty-state,
+.achievement-detail .card-error-state,
+.achievement-detail .card-loading-state {
     max-width: 1160px;
     margin-left: auto;
     margin-right: auto;
+}
+
+.achievement-grid .card-empty-state,
+.achievement-grid .card-error-state,
+.achievement-grid .card-loading-state {
+    grid-column: 1 / -1;
 }
 
 @keyframes spinner-rotate {
