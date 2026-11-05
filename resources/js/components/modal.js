@@ -11,6 +11,7 @@ import {
     onUnauthorized,
 } from '../api/auth.js';
 import { ApiError, extractData } from '../api/client.js';
+import { getAlumniList } from '../api/alumni.js';
 
 export function updateAuthUI(admin) {
     const isAuthenticated = Boolean(admin && hasAuthToken());
@@ -104,6 +105,139 @@ export async function initAuthSession() {
             updateAuthUI(null);
         }
         return false;
+    }
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+let cachedAlumniList = null;
+let alumniFetchPromise = null;
+
+export async function fetchAlumniList(forceRefresh = false) {
+    if (cachedAlumniList && !forceRefresh) {
+        return cachedAlumniList;
+    }
+    if (alumniFetchPromise && !forceRefresh) {
+        return alumniFetchPromise;
+    }
+    alumniFetchPromise = (async () => {
+        try {
+            const response = await getAlumniList();
+            const data = extractData(response);
+            const list = Array.isArray(data) ? data : [];
+            cachedAlumniList = list;
+            return list;
+        } catch (err) {
+            cachedAlumniList = null;
+            throw err;
+        } finally {
+            alumniFetchPromise = null;
+        }
+    })();
+    return alumniFetchPromise;
+}
+
+export function clearAlumniCache() {
+    cachedAlumniList = null;
+    alumniFetchPromise = null;
+}
+
+export async function setupAchievementAlumniSelect(modal, forceRefresh = false) {
+    if (!modal) return;
+    const selectEl = modal.querySelector('select[data-alumni-select]') ||
+        modal.querySelector('#' + modal.id + '-author');
+    if (!selectEl) return;
+
+    const submitBtn = modal.querySelector('.btn-modal-submit');
+    const errorEl = modal.querySelector('#' + modal.id + '-author-error');
+
+    selectEl.disabled = true;
+    selectEl.innerHTML = '<option value="" disabled selected>Memuat daftar anggota/alumni...</option>';
+    if (errorEl) {
+        errorEl.style.display = 'none';
+        errorEl.setAttribute('hidden', '');
+    }
+
+    try {
+        const list = await fetchAlumniList(forceRefresh);
+
+        if (!Array.isArray(list) || list.length === 0) {
+            selectEl.innerHTML = '<option value="" disabled selected>Tidak ada anggota/alumni tersedia</option>';
+            selectEl.disabled = true;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+            }
+            if (errorEl) {
+                errorEl.style.display = 'flex';
+                errorEl.removeAttribute('hidden');
+                errorEl.innerHTML = `
+                    <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span class="form-error-text">Daftar anggota/alumni kosong. Tambahkan anggota alumni terlebih dahulu.</span>
+                `;
+            }
+            return;
+        }
+
+        let optionsHtml = '<option value="" disabled selected>Pilih Anggota/Alumni...</option>';
+        for (const item of list) {
+            const id = item.anggota_alumni_id ?? item.id;
+            const name = item.nama_lengkap ?? item.nama ?? 'Anggota';
+            optionsHtml += `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`;
+        }
+        selectEl.innerHTML = optionsHtml;
+        selectEl.disabled = false;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+        }
+        if (errorEl) {
+            errorEl.style.display = 'none';
+            errorEl.setAttribute('hidden', '');
+        }
+
+        const pendingId = selectEl.dataset.pendingSelectedId;
+        const pendingName = selectEl.dataset.pendingSelectedName;
+        if (pendingId && selectEl.querySelector(`option[value="${pendingId}"]`)) {
+            selectEl.value = String(pendingId);
+        } else if (pendingName) {
+            const match = list.find(a => (a.nama_lengkap || a.nama || '').trim().toLowerCase() === pendingName.trim().toLowerCase());
+            if (match) {
+                selectEl.value = String(match.anggota_alumni_id ?? match.id);
+            } else {
+                selectEl.value = '';
+            }
+        } else {
+            selectEl.value = '';
+        }
+    } catch (err) {
+        selectEl.innerHTML = '<option value="" disabled selected>Gagal memuat anggota/alumni</option>';
+        selectEl.disabled = true;
+        if (submitBtn) {
+            submitBtn.disabled = true;
+        }
+        if (errorEl) {
+            errorEl.style.display = 'flex';
+            errorEl.removeAttribute('hidden');
+            errorEl.innerHTML = `
+                <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span class="form-error-text">Gagal memuat daftar anggota. <button type="button" class="form-retry-link" data-retry-alumni style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-weight:600;padding:0;margin-left:4px;">Coba lagi</button></span>
+            `;
+        }
     }
 }
 
@@ -207,6 +341,16 @@ export function openModal(modalId) {
             resetModalFileInputs(modal, false);
         }
         clearModalErrors(modal);
+        const authorSelect = modal.querySelector('#achievement-modal-author');
+        if (authorSelect) {
+            delete authorSelect.dataset.pendingSelectedId;
+            delete authorSelect.dataset.pendingSelectedName;
+        }
+        setupAchievementAlumniSelect(modal);
+    }
+
+    if (modalId === 'edit-achievement-modal') {
+        setupAchievementAlumniSelect(modal);
     }
 
     if (modalId === 'publication-modal') {
@@ -256,6 +400,7 @@ export function populateEditModal(modalId, item, editBtn) {
             id: item.dataset.itemId || data.id || '',
             title: item.dataset.itemTitle || data.title || '',
             author: item.dataset.itemAuthor || data.author || '',
+            authorId: item.dataset.itemAuthorId || data.anggota_alumni_id || data.author_id || data.authorId || '',
             date: item.dataset.itemDate || data.date || '',
             status: item.dataset.itemStatus || data.status || '',
             description: item.dataset.itemDescription || item.dataset.itemContent || data.description || '',
@@ -379,9 +524,19 @@ export function populateEditModal(modalId, item, editBtn) {
         const contentEl = modal.querySelector('#edit-achievement-modal-content');
 
         if (titleEl) titleEl.value = data.title || '';
-        if (authorEl) authorEl.value = data.author || '';
         if (dateEl) dateEl.value = data.date || '';
         if (contentEl) contentEl.value = data.content || data.description || '';
+
+        if (authorEl) {
+            const targetAuthorId = data.authorId || (data.author && !isNaN(data.author) ? data.author : '');
+            authorEl.dataset.pendingSelectedId = targetAuthorId || '';
+            authorEl.dataset.pendingSelectedName = data.author || '';
+            if (targetAuthorId && authorEl.querySelector(`option[value="${targetAuthorId}"]`)) {
+                authorEl.value = String(targetAuthorId);
+            } else {
+                authorEl.value = '';
+            }
+        }
 
         resetModalFileInputs(modal, true);
 
@@ -773,6 +928,18 @@ export function initModal() {
             }
         }
 
+        // Alumni retry button
+        const retryAlumniBtn = e.target.closest('[data-retry-alumni]');
+        if (retryAlumniBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const modal = retryAlumniBtn.closest('[data-modal]');
+            if (modal) {
+                setupAchievementAlumniSelect(modal, true);
+            }
+            return;
+        }
+
         // Generic open modal button
         const openBtn = e.target.closest('[data-open-modal]');
         if (openBtn) {
@@ -826,8 +993,8 @@ export function initModal() {
         toggleBtn.setAttribute('aria-label', isPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
     });
 
-    document.addEventListener('input', (e) => {
-        const input = e.target;
+    const clearInputError = (input) => {
+        if (!input) return;
         if (input.matches('[data-auth-form] input, [data-admin-form] input, [data-admin-form] textarea, [data-admin-form] select')) {
             const group = input.closest('.form-group');
             const errorEl = group?.querySelector('.form-field-error');
@@ -838,6 +1005,14 @@ export function initModal() {
                 errorEl.setAttribute('hidden', '');
             }
         }
+    };
+
+    document.addEventListener('input', (e) => {
+        clearInputError(e.target);
+    });
+
+    document.addEventListener('change', (e) => {
+        clearInputError(e.target);
     });
 
     const loginForm = document.querySelector('[data-auth-form="login"]');

@@ -135,6 +135,7 @@ export function mapAchievementItem(raw) {
     const level = raw.tingkat ?? '';
     const dateInfo = resolveAchievementDate(raw);
     const author = resolveAchievementAuthor(raw);
+    const authorId = raw.anggota_alumni_id ?? raw.anggotaAlumni?.anggota_alumni_id ?? null;
 
     const projectRelation = raw.proyekRiset || raw.proyek_riset;
     const projectTitle = projectRelation?.judul_penelitian_simulasi || '';
@@ -154,6 +155,7 @@ export function mapAchievementItem(raw) {
         displayDate: dateInfo.displayDate,
         image: imageUrl,
         author,
+        authorId,
         project: projectTitle,
         href: id ? `/prestasi/${id}` : '#',
         raw,
@@ -165,6 +167,7 @@ export function renderAchievementCard(item) {
     const safeTitle = escapeHtml(item.title);
     const safeDescription = escapeHtml(item.description);
     const safeAuthor = escapeHtml(item.author);
+    const safeAuthorId = escapeHtml(item.authorId ?? item.raw?.anggota_alumni_id ?? item.raw?.anggotaAlumni?.anggota_alumni_id ?? '');
     const safeDate = escapeHtml(item.isoDate || item.badge || '');
     const safeYear = escapeHtml(item.year || item.badge || '');
     const safeBadge = escapeHtml(item.badge || '');
@@ -188,6 +191,7 @@ export function renderAchievementCard(item) {
             data-item-type="achievement"
             data-item-title="${safeTitle}"
             data-item-author="${safeAuthor}"
+            data-item-author-id="${safeAuthorId}"
             data-item-year="${safeYear}"
             data-item-date="${safeDate}"
             data-item-content="${safeDescription}"

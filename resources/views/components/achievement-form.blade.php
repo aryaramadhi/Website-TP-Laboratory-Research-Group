@@ -60,14 +60,20 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="{{ $id }}-author" class="form-label">Penulis</label>
-                    <input
-                        type="text"
-                        id="{{ $id }}-author"
-                        name="author"
-                        class="form-input"
-                        placeholder="Masukkan nama penulis"
-                        required
-                    >
+                    <div class="form-select-group">
+                        <select
+                            id="{{ $id }}-author"
+                            name="anggota_alumni_id"
+                            class="form-select"
+                            required
+                            data-alumni-select
+                        >
+                            <option value="" disabled selected>Pilih Anggota/Alumni...</option>
+                        </select>
+                        <svg class="form-select-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
                     <div class="form-field-error" id="{{ $id }}-author-error" role="alert" style="display: none;">
                         <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <circle cx="12" cy="12" r="10"></circle>
