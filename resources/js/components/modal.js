@@ -8,10 +8,13 @@ import {
     hasAuthToken,
     setAdminUser,
     removeAdminUser,
+    getAdminUser,
     onUnauthorized,
 } from '../api/auth.js';
 import { ApiError, extractData } from '../api/client.js';
 import { getAlumniList } from '../api/alumni.js';
+import { createResearch, updateResearch, deleteResearch } from '../api/research.js';
+import { createNews, updateNews, deleteNews } from '../api/news.js';
 
 export function updateAuthUI(admin) {
     const isAuthenticated = Boolean(admin && hasAuthToken());
@@ -246,7 +249,9 @@ export function showFieldError(input, errorContainerId, message) {
     input.setAttribute('aria-invalid', 'true');
     input.setAttribute('aria-describedby', errorContainerId);
 
-    const errorEl = document.getElementById(errorContainerId);
+    const modal = input.closest ? input.closest('[data-modal]') : null;
+    const errorEl = (modal ? modal.querySelector(`#${errorContainerId}`) : null) ||
+        (typeof document !== 'undefined' ? document.getElementById(errorContainerId) : null);
     if (errorEl) {
         const textEl = errorEl.querySelector('.form-error-text');
         if (textEl && message) {
@@ -262,7 +267,9 @@ export function clearFieldError(input, errorContainerId) {
         input.setAttribute('aria-invalid', 'false');
         input.removeAttribute('aria-describedby');
     }
-    const errorEl = document.getElementById(errorContainerId);
+    const modal = input?.closest ? input.closest('[data-modal]') : null;
+    const errorEl = (modal ? modal.querySelector(`#${errorContainerId}`) : null) ||
+        (typeof document !== 'undefined' ? document.getElementById(errorContainerId) : null);
     if (errorEl) {
         errorEl.style.display = 'none';
         errorEl.setAttribute('hidden', '');
@@ -275,10 +282,141 @@ export function clearModalErrors(modal) {
         el.style.display = 'none';
         el.setAttribute('hidden', '');
     });
-    modal.querySelectorAll('input').forEach((input) => {
+    modal.querySelectorAll('input, textarea, select').forEach((input) => {
         input.setAttribute('aria-invalid', 'false');
         input.removeAttribute('aria-describedby');
     });
+}
+
+export function showModalGeneralError(modal, modalId, message) {
+    const genErr = modal?.querySelector ? modal.querySelector(`#${modalId}-general-error`) : null;
+    const errorEl = genErr || (typeof document !== 'undefined' ? document.getElementById(`${modalId}-general-error`) : null);
+    if (errorEl) {
+        const textEl = errorEl.querySelector('.form-error-text');
+        if (textEl && message) {
+            textEl.textContent = message;
+        }
+        errorEl.style.display = 'flex';
+        errorEl.removeAttribute('hidden');
+    }
+}
+
+export const CMS_FIELD_MAPPINGS = {
+    research: {
+        judul_penelitian_simulasi: 'title',
+        deskripsi_singkat: 'description',
+        tanggal_mulai: 'date',
+        status_proyek: 'status',
+    },
+    news: {
+        judul_berita: 'title',
+        isi_artikel_ringkas: 'content',
+        tanggal_rilis: 'date',
+        gambar_pendukung: 'image',
+    },
+};
+
+export function buildResearchPayload(form, isEdit = false) {
+    const admin = getAdminUser();
+    const adminId = admin?.admin_id ?? admin?.id;
+
+    const title = form?.querySelector('[name="title"]')?.value?.trim() || '';
+    const description = form?.querySelector('[name="description"]')?.value?.trim() || '';
+    const date = form?.querySelector('[name="date"]')?.value?.trim() || '';
+    const status = form?.querySelector('[name="status"]')?.value?.trim() || 'Sedang Berjalan';
+
+    const payload = {
+        judul_penelitian_simulasi: title,
+        deskripsi_singkat: description,
+        tanggal_mulai: date,
+        status_proyek: status,
+    };
+
+    if (!isEdit) {
+        payload.tanggal_selesai = null;
+    }
+
+    if (adminId !== undefined && adminId !== null && adminId !== '') {
+        payload.admin_id = Number(adminId);
+    }
+
+    return payload;
+}
+
+export function buildNewsPayload(form, isEdit = false) {
+    const admin = getAdminUser();
+    const adminId = admin?.admin_id ?? admin?.id;
+
+    const title = form?.querySelector('[name="title"]')?.value?.trim() || '';
+    const content = form?.querySelector('[name="content"]')?.value?.trim() || '';
+    const rawDate = form?.querySelector('[name="date"]')?.value?.trim();
+    const date = rawDate ? rawDate : null;
+
+    const modal = form?.closest ? form.closest('[data-modal]') : null;
+    const imageInput = form?.querySelector ? form.querySelector('[name="image"]') : null;
+
+    let customImageString = null;
+    if (imageInput && imageInput.type !== 'file' && typeof imageInput.value === 'string' && imageInput.value.trim()) {
+        customImageString = imageInput.value.trim();
+    }
+
+    const payload = {
+        judul_berita: title,
+        isi_artikel_ringkas: content,
+        tanggal_rilis: date,
+    };
+
+    if (!isEdit) {
+        payload.topik_utama = null;
+        payload.gambar_pendukung = customImageString || null;
+    } else {
+        const existingImage = modal?.dataset?.editingImage?.trim();
+        if (customImageString) {
+            payload.gambar_pendukung = customImageString;
+        } else if (existingImage) {
+            payload.gambar_pendukung = existingImage;
+        }
+    }
+
+    if (adminId !== undefined && adminId !== null && adminId !== '') {
+        payload.admin_id = Number(adminId);
+    }
+
+    return payload;
+}
+
+export function handleCmsValidationErrors(form, modal, modalId, resourceType, errors) {
+    if (!errors || typeof errors !== 'object') return;
+
+    const mapping = CMS_FIELD_MAPPINGS[resourceType] || {};
+    let hasFieldErrors = false;
+    const unmappedMessages = [];
+
+    for (const [backendField, messages] of Object.entries(errors)) {
+        const message = Array.isArray(messages) ? messages[0] : String(messages);
+        const frontendFieldName = mapping[backendField];
+
+        if (frontendFieldName) {
+            const inputField = form?.querySelector(`[name="${frontendFieldName}"]`);
+            const errorContainerId = `${modalId}-${frontendFieldName}-error`;
+            if (inputField) {
+                showFieldError(inputField, errorContainerId, message);
+                hasFieldErrors = true;
+                continue;
+            }
+        }
+
+        unmappedMessages.push(message);
+    }
+
+    if (unmappedMessages.length > 0) {
+        showModalGeneralError(modal, modalId, unmappedMessages.join(' '));
+    }
+
+    if (hasFieldErrors && form) {
+        const firstInvalid = form.querySelector('[aria-invalid="true"]');
+        firstInvalid?.focus();
+    }
 }
 
 function resetModalFileInputs(modal, isEdit = false) {
@@ -318,6 +456,7 @@ export function openModal(modalId) {
     }
 
     if (modalId === 'news-modal') {
+        delete modal.dataset.editingImage;
         const form = modal.querySelector('form');
         if (form) {
             form.reset();
@@ -407,6 +546,7 @@ export function populateEditModal(modalId, item, editBtn) {
             journal: item.dataset.itemJournal || data.journal || '',
             year: item.dataset.itemYear || data.year || '',
             doi: item.dataset.itemDoi || data.doi || '',
+            image: item.dataset.itemImage || data.image || item.querySelector?.('img.news-card__image')?.getAttribute('src') || '',
             supportingImage1: item.dataset.itemSupportingImage1 || data.supporting_image_1 || '',
             supportingImage2: item.dataset.itemSupportingImage2 || data.supporting_image_2 || '',
         };
@@ -478,6 +618,7 @@ export function populateEditModal(modalId, item, editBtn) {
     // Berita Form Modal
     if (modalId === 'edit-news-modal') {
         modal.dataset.editingId = data.id || '';
+        modal.dataset.editingImage = data.image || '';
         const idInput = modal.querySelector('input[name="news_id"]');
         if (idInput) idInput.value = data.id || '';
 
@@ -611,62 +752,59 @@ export function initModal() {
                     return;
                 }
 
+                if (confirmDeleteBtn.disabled) return;
+
                 const originalBtnText = confirmDeleteBtn.textContent;
                 confirmDeleteBtn.disabled = true;
                 confirmDeleteBtn.textContent = 'Menghapus...';
 
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                (async () => {
+                    try {
+                        await deleteResearch(researchId);
 
-                fetch(`/admin/research/${researchId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken || '',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                })
-                .then(async (response) => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        alert(data.message || 'Gagal menghapus riset.');
-                        return;
-                    }
+                        const confirmModal = confirmDeleteBtn.closest('[data-modal]');
+                        if (confirmModal) closeModal(confirmModal);
 
-                    const confirmModal = confirmDeleteBtn.closest('[data-modal]');
-                    if (confirmModal) closeModal(confirmModal);
-
-                    if (activeEditModal) {
-                        closeModal(activeEditModal);
-                        activeEditModal = null;
-                    }
-
-                    // If currently on detail page, redirect to research list
-                    if (window.location.pathname.startsWith('/riset/')) {
-                        window.location.href = data.redirect || '/riset';
-                    } else {
-                        // On list or home page, remove item or reload
-                        if (activeEditingItem) {
-                            activeEditingItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                            activeEditingItem.style.opacity = '0';
-                            activeEditingItem.style.transform = 'scale(0.96)';
-                            setTimeout(() => {
-                                activeEditingItem?.remove();
-                                activeEditingItem = null;
-                                window.location.reload();
-                            }, 300);
-                        } else {
-                            window.location.reload();
+                        if (activeEditModal) {
+                            closeModal(activeEditModal);
+                            activeEditModal = null;
                         }
+
+                        if (window.location.pathname.startsWith('/riset/')) {
+                            window.location.href = '/riset';
+                        } else {
+                            if (activeEditingItem) {
+                                activeEditingItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                                activeEditingItem.style.opacity = '0';
+                                activeEditingItem.style.transform = 'scale(0.96)';
+                                setTimeout(() => {
+                                    activeEditingItem?.remove();
+                                    activeEditingItem = null;
+                                    window.location.reload();
+                                }, 300);
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                    } catch (err) {
+                        if (err instanceof ApiError && err.status === 401) {
+                            const confirmModal = confirmDeleteBtn.closest('[data-modal]');
+                            if (confirmModal) closeModal(confirmModal);
+                            if (activeEditModal) {
+                                closeModal(activeEditModal);
+                                activeEditModal = null;
+                            }
+                            return;
+                        }
+                        const errorMsg = (err instanceof ApiError && (err.data?.message || err.message))
+                            ? (err.data?.message || err.message)
+                            : 'Gagal menghapus riset.';
+                        alert(errorMsg);
+                    } finally {
+                        confirmDeleteBtn.disabled = false;
+                        confirmDeleteBtn.textContent = originalBtnText;
                     }
-                })
-                .catch(() => {
-                    alert('Terjadi kesalahan jaringan saat menghapus riset.');
-                })
-                .finally(() => {
-                    confirmDeleteBtn.disabled = false;
-                    confirmDeleteBtn.textContent = originalBtnText;
-                });
+                })();
 
                 return;
             }
@@ -684,62 +822,59 @@ export function initModal() {
                     return;
                 }
 
+                if (confirmDeleteBtn.disabled) return;
+
                 const originalBtnText = confirmDeleteBtn.textContent;
                 confirmDeleteBtn.disabled = true;
                 confirmDeleteBtn.textContent = 'Menghapus...';
 
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                (async () => {
+                    try {
+                        await deleteNews(newsId);
 
-                fetch(`/admin/news/${newsId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken || '',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                })
-                .then(async (response) => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        alert(data.message || 'Gagal menghapus berita.');
-                        return;
-                    }
+                        const confirmModal = confirmDeleteBtn.closest('[data-modal]');
+                        if (confirmModal) closeModal(confirmModal);
 
-                    const confirmModal = confirmDeleteBtn.closest('[data-modal]');
-                    if (confirmModal) closeModal(confirmModal);
-
-                    if (activeEditModal) {
-                        closeModal(activeEditModal);
-                        activeEditModal = null;
-                    }
-
-                    // If currently on detail page, redirect to news list
-                    if (window.location.pathname.startsWith('/berita/')) {
-                        window.location.href = data.redirect || '/berita';
-                    } else {
-                        // On list or home page, remove item or reload
-                        if (activeEditingItem) {
-                            activeEditingItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                            activeEditingItem.style.opacity = '0';
-                            activeEditingItem.style.transform = 'scale(0.96)';
-                            setTimeout(() => {
-                                activeEditingItem?.remove();
-                                activeEditingItem = null;
-                                window.location.reload();
-                            }, 300);
-                        } else {
-                            window.location.reload();
+                        if (activeEditModal) {
+                            closeModal(activeEditModal);
+                            activeEditModal = null;
                         }
+
+                        if (window.location.pathname.startsWith('/berita/')) {
+                            window.location.href = '/berita';
+                        } else {
+                            if (activeEditingItem) {
+                                activeEditingItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                                activeEditingItem.style.opacity = '0';
+                                activeEditingItem.style.transform = 'scale(0.96)';
+                                setTimeout(() => {
+                                    activeEditingItem?.remove();
+                                    activeEditingItem = null;
+                                    window.location.reload();
+                                }, 300);
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                    } catch (err) {
+                        if (err instanceof ApiError && err.status === 401) {
+                            const confirmModal = confirmDeleteBtn.closest('[data-modal]');
+                            if (confirmModal) closeModal(confirmModal);
+                            if (activeEditModal) {
+                                closeModal(activeEditModal);
+                                activeEditModal = null;
+                            }
+                            return;
+                        }
+                        const errorMsg = (err instanceof ApiError && (err.data?.message || err.message))
+                            ? (err.data?.message || err.message)
+                            : 'Gagal menghapus berita.';
+                        alert(errorMsg);
+                    } finally {
+                        confirmDeleteBtn.disabled = false;
+                        confirmDeleteBtn.textContent = originalBtnText;
                     }
-                })
-                .catch(() => {
-                    alert('Terjadi kesalahan jaringan saat menghapus berita.');
-                })
-                .finally(() => {
-                    confirmDeleteBtn.disabled = false;
-                    confirmDeleteBtn.textContent = originalBtnText;
-                });
+                })();
 
                 return;
             }
@@ -1128,14 +1263,6 @@ export function initModal() {
     });
 
     const ADMIN_RESOURCES = {
-        research: {
-            basePath: '/admin/research',
-            missingIdMessage: 'ID Riset tidak ditemukan.',
-        },
-        news: {
-            basePath: '/admin/news',
-            missingIdMessage: 'ID Berita tidak ditemukan.',
-        },
         achievement: {
             basePath: '/admin/achievements',
             missingIdMessage: 'ID Prestasi & pencapaian tidak ditemukan.',
@@ -1146,25 +1273,13 @@ export function initModal() {
         },
     };
 
-    function showModalGeneralError(modal, modalId, message) {
-        const genErr = modal?.querySelector(`#${modalId}-general-error`);
-        if (genErr) {
-            const textEl = genErr.querySelector('.form-error-text');
-            if (textEl && message) {
-                textEl.textContent = message;
-            }
-            genErr.style.display = 'flex';
-            genErr.removeAttribute('hidden');
-        }
-    }
-
     document.addEventListener('submit', async (e) => {
         const form = e.target.closest('[data-admin-form]');
         if (!form) return;
 
         const resourceType = form.dataset.adminForm;
         const config = ADMIN_RESOURCES[resourceType];
-        if (!config) return;
+        if (!config && resourceType !== 'research' && resourceType !== 'news') return;
 
         e.preventDefault();
 
@@ -1173,10 +1288,78 @@ export function initModal() {
         clearModalErrors(modal);
 
         const submitBtn = form.querySelector('.btn-modal-submit');
-        const originalBtnText = submitBtn ? submitBtn.textContent : 'Simpan';
+        if (submitBtn?.disabled) return;
 
+        const originalBtnText = submitBtn ? submitBtn.textContent : 'Simpan';
         const isEdit = modalId === `edit-${resourceType}-modal`;
-        const editingId = modal?.dataset.editingId || form.querySelector(`input[name="${resourceType}_id"]`)?.value;
+        const editingId = modal?.dataset.editingId ||
+            form.querySelector(`input[name="${resourceType}_id"]`)?.value ||
+            (activeEditingItem && activeEditingItem.dataset.itemType === resourceType ? activeEditingItem.dataset.itemId : null);
+
+        if (resourceType === 'research' || resourceType === 'news') {
+            if (isEdit && !editingId) {
+                showModalGeneralError(modal, modalId, resourceType === 'research' ? 'ID Riset tidak ditemukan.' : 'ID Berita tidak ditemukan.');
+                return;
+            }
+
+            const payload = resourceType === 'research'
+                ? buildResearchPayload(form, isEdit)
+                : buildNewsPayload(form, isEdit);
+
+            if (!payload.admin_id || isNaN(payload.admin_id)) {
+                showModalGeneralError(modal, modalId, 'Sesi admin tidak valid atau ID admin tidak ditemukan. Silakan masuk kembali.');
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Menyimpan...';
+            }
+
+            try {
+                if (resourceType === 'research') {
+                    if (isEdit) {
+                        await updateResearch(editingId, payload);
+                    } else {
+                        await createResearch(payload);
+                    }
+                } else {
+                    if (isEdit) {
+                        await updateNews(editingId, payload);
+                    } else {
+                        await createNews(payload);
+                    }
+                }
+
+                closeModal(modal);
+                if (typeof window !== 'undefined') {
+                    window.location.reload();
+                }
+            } catch (err) {
+                if (err instanceof ApiError) {
+                    if (err.status === 401) {
+                        closeModal(modal);
+                        return;
+                    }
+                    if (err.status === 422 && err.data?.errors) {
+                        handleCmsValidationErrors(form, modal, modalId, resourceType, err.data.errors);
+                        return;
+                    }
+                    const msg = (err.data && err.data.message) || err.message || 'Terjadi kesalahan pada server.';
+                    showModalGeneralError(modal, modalId, msg);
+                    return;
+                }
+                showModalGeneralError(modal, modalId, 'Terjadi kesalahan jaringan. Silakan coba lagi.');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                }
+            }
+            return;
+        }
+
+        if (!config) return;
 
         if (isEdit && !editingId) {
             showModalGeneralError(modal, modalId, config.missingIdMessage);
@@ -1238,7 +1421,6 @@ export function initModal() {
                 return;
             }
 
-            // Success: Close modal and navigate/reload to reflect updated data
             closeModal(modal);
             window.location.href = data.redirect || window.location.href;
         } catch (err) {
