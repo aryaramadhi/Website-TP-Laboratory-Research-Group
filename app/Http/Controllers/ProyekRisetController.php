@@ -40,6 +40,9 @@ class ProyekRisetController extends Controller
             'gambar_pendukung_2'       => 'nullable',
         ]);
 
+        $this->ensureMainImagePresentOnStore($request, 'dokumentasi_visual_utama');
+        $this->validateSupportingImagePair($request, false);
+
         $data = [
             'judul_penelitian_simulasi' => $validated['judul_penelitian_simulasi'],
             'deskripsi_singkat'        => $validated['deskripsi_singkat'],
@@ -49,7 +52,6 @@ class ProyekRisetController extends Controller
             'admin_id'                 => $validated['admin_id'],
         ];
 
-        // Main image upload
         $mainFile = $request->file('image') ?? $request->file('dokumentasi_visual_utama');
         if ($mainFile) {
             $data['dokumentasi_visual_utama'] = $this->handleImageUpload($mainFile, 'researches');
@@ -57,21 +59,7 @@ class ProyekRisetController extends Controller
             $data['dokumentasi_visual_utama'] = $request->input('dokumentasi_visual_utama');
         }
 
-        // Supporting image 1
-        $supp1File = $request->file('supporting_image_1') ?? $request->file('gambar_pendukung_1');
-        if ($supp1File) {
-            $data['gambar_pendukung_1'] = $this->handleImageUpload($supp1File, 'researches/gallery');
-        } elseif ($request->filled('gambar_pendukung_1') && $this->isValidPathString($request->input('gambar_pendukung_1'))) {
-            $data['gambar_pendukung_1'] = $request->input('gambar_pendukung_1');
-        }
-
-        // Supporting image 2
-        $supp2File = $request->file('supporting_image_2') ?? $request->file('gambar_pendukung_2');
-        if ($supp2File) {
-            $data['gambar_pendukung_2'] = $this->handleImageUpload($supp2File, 'researches/gallery');
-        } elseif ($request->filled('gambar_pendukung_2') && $this->isValidPathString($request->input('gambar_pendukung_2'))) {
-            $data['gambar_pendukung_2'] = $request->input('gambar_pendukung_2');
-        }
+        $this->applySupportingImagesOnStore($request, 'researches/gallery', $data);
 
         $proyek = ProyekRiset::create($data);
 
@@ -121,14 +109,8 @@ class ProyekRisetController extends Controller
             'remove_supporting_image_2' => 'nullable|in:0,1,true,false',
         ]);
 
-        $mainFile = $request->file('image') ?? $request->file('dokumentasi_visual_utama');
-        $hasMainPathInput = $request->filled('dokumentasi_visual_utama')
-            && $this->isValidPathString($request->input('dokumentasi_visual_utama'));
-        if ($request->boolean('remove_image') && !$mainFile && !$hasMainPathInput) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'image' => ['Gambar utama wajib diisi dan tidak dapat dihapus tanpa gambar pengganti.'],
-            ]);
-        }
+        $this->rejectMainImageRemovalOnUpdate($request);
+        $this->validateSupportingImagePair($request, true, $proyek);
 
         $data = [];
         foreach (['judul_penelitian_simulasi', 'deskripsi_singkat', 'tanggal_mulai', 'status_proyek', 'admin_id'] as $field) {
@@ -156,43 +138,7 @@ class ProyekRisetController extends Controller
             $data['dokumentasi_visual_utama'] = $request->input('dokumentasi_visual_utama');
         }
 
-        $supp1File = $request->file('supporting_image_1') ?? $request->file('gambar_pendukung_1');
-        if ($supp1File) {
-            $oldPath = $proyek->gambar_pendukung_1;
-            $newPath = $this->handleImageUpload($supp1File, 'researches/gallery');
-            if ($newPath) {
-                $data['gambar_pendukung_1'] = $newPath;
-                if ($oldPath && $oldPath !== $newPath) {
-                    $pathsToDelete[] = $oldPath;
-                }
-            }
-        } elseif ($request->filled('gambar_pendukung_1') && $this->isValidPathString($request->input('gambar_pendukung_1'))) {
-            $data['gambar_pendukung_1'] = $request->input('gambar_pendukung_1');
-        } elseif ($request->boolean('remove_supporting_image_1')) {
-            if ($proyek->gambar_pendukung_1) {
-                $pathsToDelete[] = $proyek->gambar_pendukung_1;
-            }
-            $data['gambar_pendukung_1'] = null;
-        }
-
-        $supp2File = $request->file('supporting_image_2') ?? $request->file('gambar_pendukung_2');
-        if ($supp2File) {
-            $oldPath = $proyek->gambar_pendukung_2;
-            $newPath = $this->handleImageUpload($supp2File, 'researches/gallery');
-            if ($newPath) {
-                $data['gambar_pendukung_2'] = $newPath;
-                if ($oldPath && $oldPath !== $newPath) {
-                    $pathsToDelete[] = $oldPath;
-                }
-            }
-        } elseif ($request->filled('gambar_pendukung_2') && $this->isValidPathString($request->input('gambar_pendukung_2'))) {
-            $data['gambar_pendukung_2'] = $request->input('gambar_pendukung_2');
-        } elseif ($request->boolean('remove_supporting_image_2')) {
-            if ($proyek->gambar_pendukung_2) {
-                $pathsToDelete[] = $proyek->gambar_pendukung_2;
-            }
-            $data['gambar_pendukung_2'] = null;
-        }
+        $this->applySupportingImagesOnUpdate($request, $proyek, 'researches/gallery', $data, $pathsToDelete);
 
         $proyek->update($data);
         $this->deleteStoredImages($pathsToDelete);

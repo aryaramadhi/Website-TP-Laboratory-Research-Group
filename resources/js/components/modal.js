@@ -317,14 +317,57 @@ export function showGalleryNotice(modal, message, isInfo = false) {
     noticeEl.removeAttribute('hidden');
 }
 
+function getFieldParts(scope, name) {
+    const input = scope?.querySelector?.(`input[name="${name}"]`) || null;
+    const group = input?.closest?.('.form-group') || null;
+    return {
+        input,
+        group,
+        textEl: group?.querySelector?.('[data-file-text]') || null,
+        preview: group?.querySelector?.('[data-image-preview]') || null,
+    };
+}
+
+function getSupportingFields(scope) {
+    return {
+        supp1: getFieldParts(scope, 'supporting_image_1'),
+        supp2: getFieldParts(scope, 'supporting_image_2'),
+    };
+}
+
+function setSupportingStatusVisible(scope, visible) {
+    const statusEl = scope?.querySelector?.('[data-supporting-status]');
+    if (!statusEl) return;
+    statusEl.hidden = !visible;
+    if (visible) {
+        statusEl.removeAttribute('hidden');
+    } else {
+        statusEl.setAttribute('hidden', '');
+    }
+}
+
+function clearInputFiles(input) {
+    if (!input) return;
+    input.value = '';
+    try {
+        if (Array.isArray(input.files)) {
+            input.files = [];
+        }
+    } catch {}
+}
+
 export function hasSupportingImagesInModal(modal) {
     if (!modal) return false;
-    return ['supporting_image_1', 'supporting_image_2'].some((name) => {
-        const input = modal.querySelector(`input[name="${name}"]`);
-        if (input?.files?.length > 0) return true;
-        const preview = input?.closest('.form-group')?.querySelector('[data-image-preview]');
-        return Boolean(preview?.dataset?.existingUrl && preview?.dataset?.removedExisting !== 'true');
-    });
+    const { supp1, supp2 } = getSupportingFields(modal);
+    const has1 = Boolean(
+        (supp1.input?.files?.length > 0) ||
+        (supp1.preview?.dataset?.existingUrl && supp1.preview?.dataset?.removedExisting !== 'true')
+    );
+    const has2 = Boolean(
+        (supp2.input?.files?.length > 0) ||
+        (supp2.preview?.dataset?.existingUrl && supp2.preview?.dataset?.removedExisting !== 'true')
+    );
+    return has1 && has2;
 }
 
 export function insertGalleryMarker(textarea, marker) {
@@ -373,7 +416,7 @@ export function handleInsertGalleryClick(button) {
     } else if (result.inserted && !hasSupportingImagesInModal(modal)) {
         showGalleryNotice(
             modal,
-            `Penanda ${marker} disisipkan. Pilih minimal satu gambar pendukung agar galeri tampil pada halaman detail.`,
+            `Penanda ${marker} disisipkan. Pilih kedua gambar pendukung secara berpasangan agar galeri tampil pada halaman detail.`,
             false
         );
     } else {
@@ -449,20 +492,30 @@ export function isImageMarkedForRemoval(formOrModal, fieldName) {
 }
 
 function appendCmsImagePayloadFields(formData, form, isEdit) {
-    const fieldPairs = [
-        { input: 'image', removeFlag: 'remove_image' },
-        { input: 'supporting_image_1', removeFlag: 'remove_supporting_image_1' },
-        { input: 'supporting_image_2', removeFlag: 'remove_supporting_image_2' },
-    ];
+    const mainFile = form?.querySelector?.('[name="image"]')?.files?.[0];
+    if (mainFile) {
+        formData.append('image', mainFile);
+    }
 
-    fieldPairs.forEach(({ input, removeFlag }) => {
-        const file = form?.querySelector?.(`[name="${input}"]`)?.files?.[0];
-        if (file) {
-            formData.append(input, file);
-        } else if (isEdit && isImageMarkedForRemoval(form, input)) {
-            formData.append(removeFlag, '1');
-        }
-    });
+    const supp1File = form?.querySelector?.('[name="supporting_image_1"]')?.files?.[0];
+    const supp2File = form?.querySelector?.('[name="supporting_image_2"]')?.files?.[0];
+    if (supp1File) {
+        formData.append('supporting_image_1', supp1File);
+    }
+    if (supp2File) {
+        formData.append('supporting_image_2', supp2File);
+    }
+
+    if (
+        isEdit &&
+        !supp1File &&
+        !supp2File &&
+        isImageMarkedForRemoval(form, 'supporting_image_1') &&
+        isImageMarkedForRemoval(form, 'supporting_image_2')
+    ) {
+        formData.append('remove_supporting_image_1', '1');
+        formData.append('remove_supporting_image_2', '1');
+    }
 }
 
 export function buildResearchPayload(form, isEdit = false) {
@@ -687,6 +740,16 @@ export function normalizePreviewImageUrl(url, previewEl) {
     return `/storage/${trimmed.replace(/^\/+/, '')}`;
 }
 
+function isMainPreviewElement(previewEl) {
+    if (!previewEl) return false;
+    const inputName = previewEl.closest?.('.form-group')?.querySelector?.('[data-file-input]')?.name;
+    if (inputName) {
+        return inputName === 'image';
+    }
+    const id = String(previewEl.id || '');
+    return id.endsWith('-image-preview') && !id.includes('supporting-image');
+}
+
 export function setPreviewImage(previewEl, url, filename = '', caption = '', options = {}) {
     if (!previewEl) return;
     revokePreviewObjectUrl(previewEl);
@@ -735,7 +798,8 @@ export function setPreviewImage(previewEl, url, filename = '', caption = '', opt
     if (nameEl) nameEl.textContent = resolvedName;
     if (capEl) capEl.textContent = resolvedCaption;
     previewEl.style.display = 'flex';
-    setClearButtonVisible(previewEl, true);
+    // Only supporting image previews expose the [X] button; main images cannot be cleared.
+    setClearButtonVisible(previewEl, !isMainPreviewElement(previewEl));
 
     if (previewEl.dataset) {
         previewEl.dataset.isNewFile = isNewFile ? 'true' : 'false';
@@ -759,6 +823,7 @@ export function clearFileSelection(triggerEl) {
     const textEl = group.querySelector('[data-file-text]');
     const previewEl = group.querySelector('[data-image-preview]');
     const modal = group.closest?.('[data-modal]');
+    const scope = modal || group.closest?.('form') || group;
     const isEdit = Boolean(modal?.id?.startsWith('edit-'));
     const modalId = modal?.id || '';
     const existingUrl = previewEl?.dataset?.existingUrl || '';
@@ -767,11 +832,81 @@ export function clearFileSelection(triggerEl) {
     const isClearButton = typeof triggerEl?.matches === 'function'
         ? triggerEl.matches('[data-clear-file]')
         : Boolean(triggerEl?.dataset && 'clearFile' in triggerEl.dataset);
+    const isSupportingField = fileInput?.name === 'supporting_image_1' || fileInput?.name === 'supporting_image_2';
+
+    if (isSupportingField && isClearButton) {
+        const { supp1, supp2 } = getSupportingFields(scope);
+        const pairFields = [supp1, supp2];
+        const hasExistingPair = Boolean(supp1.preview?.dataset?.existingUrl && supp2.preview?.dataset?.existingUrl);
+        const anyNewFile = pairFields.some((f) =>
+            Boolean((f.input?.files && f.input.files.length > 0) || f.preview?.dataset?.isNewFile === 'true')
+        );
+
+        if (isEdit && hasExistingPair && anyNewFile) {
+            pairFields.forEach((f) => {
+                revokePreviewObjectUrl(f.preview);
+                clearInputFiles(f.input);
+                if (f.input) {
+                    clearFieldError(f.input, `${modalId}-${f.input.name}-error`);
+                }
+                if (f.textEl) {
+                    f.textEl.textContent = 'Pilih File (Biarkan kosong jika tidak diganti)';
+                    f.textEl.style.color = 'var(--color-primary-300)';
+                }
+                setPreviewImage(
+                    f.preview,
+                    f.preview?.dataset?.existingUrl || '',
+                    f.preview?.dataset?.existingFilename || '',
+                    f.preview?.dataset?.existingCaption || '',
+                    { isEditExisting: true, clearExisting: false }
+                );
+            });
+            setSupportingStatusVisible(scope, false);
+            return;
+        }
+
+        if (isEdit && hasExistingPair && !anyNewFile) {
+            pairFields.forEach((f) => {
+                revokePreviewObjectUrl(f.preview);
+                clearInputFiles(f.input);
+                if (f.input) {
+                    clearFieldError(f.input, `${modalId}-${f.input.name}-error`);
+                }
+                if (f.preview?.dataset) {
+                    f.preview.dataset.removedExisting = 'true';
+                }
+                setPreviewImage(f.preview, '', '', '', {
+                    clearExisting: false,
+                    preserveRemoved: true,
+                });
+                if (f.textEl) {
+                    f.textEl.textContent = 'Pasangan gambar akan dihapus saat disimpan';
+                    f.textEl.style.color = 'var(--color-primary-700)';
+                }
+            });
+            setSupportingStatusVisible(scope, true);
+            return;
+        }
+
+        // Add mode or Edit mode without saved pair: clear only the target supporting input.
+        revokePreviewObjectUrl(previewEl);
+        clearInputFiles(fileInput);
+        if (fileInput) {
+            clearFieldError(fileInput, `${modalId}-${fileInput.name}-error`);
+        }
+        setPreviewImage(previewEl, '');
+        if (textEl) {
+            textEl.textContent = 'Pilih File';
+            textEl.style.color = 'var(--color-primary-300)';
+        }
+        setSupportingStatusVisible(scope, false);
+        return;
+    }
 
     revokePreviewObjectUrl(previewEl);
 
     if (fileInput) {
-        fileInput.value = '';
+        clearInputFiles(fileInput);
         clearFieldError(fileInput, `${modalId}-${fileInput.name}-error`);
     }
 
@@ -790,32 +925,13 @@ export function clearFileSelection(triggerEl) {
         return;
     }
 
-    if (isEdit && existingUrl && isClearButton && !isNewFile) {
-        if (previewEl?.dataset) {
-            previewEl.dataset.removedExisting = 'true';
-        }
-        setPreviewImage(previewEl, '', '', '', {
-            clearExisting: false,
-            preserveRemoved: true,
-        });
-        if (textEl) {
-            textEl.textContent = fileInput?.name === 'image'
-                ? 'Gambar utama dihapus. Pilih gambar pengganti'
-                : 'Gambar akan dihapus saat disimpan';
-            textEl.style.color = 'var(--color-primary-700)';
-        }
-        return;
-    }
-
     setPreviewImage(previewEl, '', '', '', {
         clearExisting: !isEdit || !existingUrl,
         preserveRemoved: stillRemoved,
     });
     if (textEl) {
         if (stillRemoved) {
-            textEl.textContent = fileInput?.name === 'image'
-                ? 'Gambar utama dihapus. Pilih gambar pengganti'
-                : 'Gambar akan dihapus saat disimpan';
+            textEl.textContent = 'Pasangan gambar akan dihapus saat disimpan';
             textEl.style.color = 'var(--color-primary-700)';
         } else {
             textEl.textContent = isEdit && existingUrl
@@ -832,9 +948,10 @@ export function handleFileInputChange(fileInput) {
     const textEl = fileInput.closest?.('.form-file-group')?.querySelector('[data-file-text]');
     const previewEl = group?.querySelector('[data-image-preview]');
     const modal = fileInput.closest?.('[data-modal]');
-    const isEdit = Boolean(modal?.id?.startsWith('edit-'));
+    const scope = modal || fileInput.closest?.('form') || group;
     const modalId = modal?.id || '';
     const errorContainerId = `${modalId}-${fileInput.name}-error`;
+    const isSupportingField = fileInput.name === 'supporting_image_1' || fileInput.name === 'supporting_image_2';
 
     clearFieldError(fileInput, errorContainerId);
     revokePreviewObjectUrl(previewEl);
@@ -846,7 +963,6 @@ export function handleFileInputChange(fileInput) {
         const maxBytes = 2 * 1024 * 1024;
 
         if (!validExtensions.includes(ext)) {
-            showFieldError(fileInput, errorContainerId, 'Format gambar tidak didukung. Gunakan JPG, JPEG, PNG, atau WEBP.');
             fileInput.value = '';
             clearFileSelection(fileInput);
             showFieldError(fileInput, errorContainerId, 'Format gambar tidak didukung. Gunakan JPG, JPEG, PNG, atau WEBP.');
@@ -860,6 +976,27 @@ export function handleFileInputChange(fileInput) {
             clearFileSelection(fileInput);
             showFieldError(fileInput, errorContainerId, msg);
             return;
+        }
+
+        if (isSupportingField) {
+            const { supp1, supp2 } = getSupportingFields(scope);
+            const otherField = fileInput.name === 'supporting_image_1' ? supp2 : supp1;
+            const otherWasRemoved = otherField.preview?.dataset?.removedExisting === 'true';
+
+            setSupportingStatusVisible(scope, false);
+            [supp1, supp2].forEach((f) => {
+                if (f.input) {
+                    clearFieldError(f.input, `${modalId}-${f.input.name}-error`);
+                }
+                if (f.preview?.dataset) {
+                    delete f.preview.dataset.removedExisting;
+                }
+            });
+
+            if (otherWasRemoved && otherField.textEl && !(otherField.input?.files?.length > 0)) {
+                otherField.textEl.textContent = 'Pilih File';
+                otherField.textEl.style.color = 'var(--color-primary-300)';
+            }
         }
 
         if (textEl) {
@@ -878,7 +1015,7 @@ export function handleFileInputChange(fileInput) {
             });
         }
 
-        if (fileInput.name === 'supporting_image_1' || fileInput.name === 'supporting_image_2') {
+        if (isSupportingField && hasSupportingImagesInModal(modal || scope)) {
             clearGalleryNotices(modal);
         }
     } else {
@@ -887,23 +1024,13 @@ export function handleFileInputChange(fileInput) {
 }
 
 export function validateMainImageSelection(form, modalId, resourceType, isEdit) {
-    if (!['research', 'news', 'achievement'].includes(resourceType)) {
+    if (isEdit || !['research', 'news', 'achievement'].includes(resourceType)) {
         return true;
     }
     const imageInput = form?.querySelector('input[name="image"]');
     if (!imageInput) return true;
 
-    const hasNewFile = Boolean(imageInput.files && imageInput.files.length > 0);
-    if (isEdit) {
-        if (!hasNewFile && isImageMarkedForRemoval(form, 'image')) {
-            showFieldError(imageInput, `${modalId}-image-error`, 'Gambar utama wajib diisi. Pilih gambar pengganti terlebih dahulu.');
-            imageInput.focus?.();
-            return false;
-        }
-        return true;
-    }
-
-    if (!hasNewFile) {
+    if (!imageInput.files || imageInput.files.length === 0) {
         showFieldError(imageInput, `${modalId}-image-error`, 'Gambar utama wajib diisi.');
         imageInput.focus?.();
         return false;
@@ -911,8 +1038,43 @@ export function validateMainImageSelection(form, modalId, resourceType, isEdit) 
     return true;
 }
 
+export function validateSupportingImagesSelection(form, modalId, resourceType, isEdit) {
+    if (!['research', 'news', 'achievement'].includes(resourceType)) {
+        return true;
+    }
+
+    const { supp1, supp2 } = getSupportingFields(form);
+    if (!supp1.input || !supp2.input) {
+        return true;
+    }
+
+    const hasNew1 = Boolean(supp1.input.files && supp1.input.files.length > 0);
+    const hasNew2 = Boolean(supp2.input.files && supp2.input.files.length > 0);
+    const pairMsg = 'Gambar pendukung harus diisi berpasangan. Pilih kedua gambar atau kosongkan keduanya.';
+
+    if (hasNew1 !== hasNew2) {
+        const missingInput = hasNew1 ? supp2.input : supp1.input;
+        showFieldError(missingInput, `${modalId}-${missingInput.name}-error`, pairMsg);
+        missingInput.focus?.();
+        return false;
+    }
+
+    if (isEdit && !hasNew1 && !hasNew2) {
+        const rem1 = supp1.preview?.dataset?.removedExisting === 'true';
+        const rem2 = supp2.preview?.dataset?.removedExisting === 'true';
+        if (rem1 !== rem2) {
+            showFieldError(supp1.input, `${modalId}-supporting_image_1-error`, 'Gambar pendukung harus dihapus berpasangan.');
+            supp1.input.focus?.();
+            return false;
+        }
+    }
+
+    return true;
+}
+
 function resetModalFileInputs(modal, isEdit = false) {
     if (!modal) return;
+    setSupportingStatusVisible(modal, false);
     modal.querySelectorAll('[data-image-preview]').forEach((previewEl) => {
         revokePreviewObjectUrl(previewEl);
         setClearButtonVisible(previewEl, false);
@@ -1029,6 +1191,24 @@ export function closeModal(modal) {
     clearModalErrors(modal);
 }
 
+function populateEditSupportingImages(modal, supportingImage1, supportingImage2) {
+    const hasPair = Boolean(supportingImage1 && supportingImage2);
+    const { supp1, supp2 } = getSupportingFields(modal);
+    setSupportingStatusVisible(modal, false);
+
+    [
+        { field: supp1, url: hasPair ? supportingImage1 : '', caption: 'Gambar pendukung 1 saat ini' },
+        { field: supp2, url: hasPair ? supportingImage2 : '', caption: 'Gambar pendukung 2 saat ini' },
+    ].forEach(({ field, url, caption }) => {
+        if (field.textEl) {
+            field.textEl.textContent = url
+                ? 'Pilih File (Biarkan kosong jika tidak diganti)'
+                : 'Pilih File';
+        }
+        setPreviewImage(field.preview, url, '', caption, { isEditExisting: true });
+    });
+}
+
 export function populateEditModal(modalId, item, editBtn) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
@@ -1084,25 +1264,7 @@ export function populateEditModal(modalId, item, editBtn) {
         const mainPreview = modal.querySelector('#edit-research-modal-image-preview');
         setPreviewImage(mainPreview, data.image, '', 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)', { isEditExisting: true });
 
-        const supp1Input = modal.querySelector('input[name="supporting_image_1"]');
-        const supp1Text = supp1Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
-        if (supp1Text) {
-            supp1Text.textContent = data.supportingImage1
-                ? 'Pilih File (Biarkan kosong jika tidak diganti)'
-                : 'Pilih File';
-        }
-        const supp1Preview = modal.querySelector('#edit-research-modal-supporting-image-1-preview');
-        setPreviewImage(supp1Preview, data.supportingImage1, '', 'Gambar pendukung 1 saat ini', { isEditExisting: true });
-
-        const supp2Input = modal.querySelector('input[name="supporting_image_2"]');
-        const supp2Text = supp2Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
-        if (supp2Text) {
-            supp2Text.textContent = data.supportingImage2
-                ? 'Pilih File (Biarkan kosong jika tidak diganti)'
-                : 'Pilih File';
-        }
-        const supp2Preview = modal.querySelector('#edit-research-modal-supporting-image-2-preview');
-        setPreviewImage(supp2Preview, data.supportingImage2, '', 'Gambar pendukung 2 saat ini', { isEditExisting: true });
+        populateEditSupportingImages(modal, data.supportingImage1, data.supportingImage2);
 
         clearModalErrors(modal);
     }
@@ -1150,25 +1312,7 @@ export function populateEditModal(modalId, item, editBtn) {
         const mainPreview = modal.querySelector('#edit-news-modal-image-preview');
         setPreviewImage(mainPreview, data.image, '', 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)', { isEditExisting: true });
 
-        const supp1Input = modal.querySelector('input[name="supporting_image_1"]');
-        const supp1Text = supp1Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
-        if (supp1Text) {
-            supp1Text.textContent = data.supportingImage1
-                ? 'Pilih File (Biarkan kosong jika tidak diganti)'
-                : 'Pilih File';
-        }
-        const supp1Preview = modal.querySelector('#edit-news-modal-supporting-image-1-preview');
-        setPreviewImage(supp1Preview, data.supportingImage1, '', 'Gambar pendukung 1 saat ini', { isEditExisting: true });
-
-        const supp2Input = modal.querySelector('input[name="supporting_image_2"]');
-        const supp2Text = supp2Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
-        if (supp2Text) {
-            supp2Text.textContent = data.supportingImage2
-                ? 'Pilih File (Biarkan kosong jika tidak diganti)'
-                : 'Pilih File';
-        }
-        const supp2Preview = modal.querySelector('#edit-news-modal-supporting-image-2-preview');
-        setPreviewImage(supp2Preview, data.supportingImage2, '', 'Gambar pendukung 2 saat ini', { isEditExisting: true });
+        populateEditSupportingImages(modal, data.supportingImage1, data.supportingImage2);
 
         clearModalErrors(modal);
     }
@@ -1205,25 +1349,7 @@ export function populateEditModal(modalId, item, editBtn) {
         const mainPreview = modal.querySelector('#edit-achievement-modal-image-preview');
         setPreviewImage(mainPreview, data.image, '', 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)', { isEditExisting: true });
 
-        const supp1Input = modal.querySelector('input[name="supporting_image_1"]');
-        const supp1Text = supp1Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
-        if (supp1Text) {
-            supp1Text.textContent = data.supportingImage1
-                ? 'Pilih File (Biarkan kosong jika tidak diganti)'
-                : 'Pilih File';
-        }
-        const supp1Preview = modal.querySelector('#edit-achievement-modal-supporting-image-1-preview');
-        setPreviewImage(supp1Preview, data.supportingImage1, '', 'Gambar pendukung 1 saat ini', { isEditExisting: true });
-
-        const supp2Input = modal.querySelector('input[name="supporting_image_2"]');
-        const supp2Text = supp2Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
-        if (supp2Text) {
-            supp2Text.textContent = data.supportingImage2
-                ? 'Pilih File (Biarkan kosong jika tidak diganti)'
-                : 'Pilih File';
-        }
-        const supp2Preview = modal.querySelector('#edit-achievement-modal-supporting-image-2-preview');
-        setPreviewImage(supp2Preview, data.supportingImage2, '', 'Gambar pendukung 2 saat ini', { isEditExisting: true });
+        populateEditSupportingImages(modal, data.supportingImage1, data.supportingImage2);
 
         clearModalErrors(modal);
     }
@@ -1802,7 +1928,10 @@ export function initModal() {
 
         const originalBtnText = submitBtn ? submitBtn.textContent : 'Simpan';
         const isEdit = modalId === `edit-${resourceType}-modal`;
-        if (!validateMainImageSelection(form, modalId, resourceType, isEdit)) {
+        if (
+            !validateMainImageSelection(form, modalId, resourceType, isEdit) ||
+            !validateSupportingImagesSelection(form, modalId, resourceType, isEdit)
+        ) {
             return;
         }
         const editingId = modal?.dataset.editingId ||

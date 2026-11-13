@@ -36,6 +36,9 @@ class BeritaIsuController extends Controller
             'admin_id'             => 'required|exists:admins,admin_id',
         ]);
 
+        $this->ensureMainImagePresentOnStore($request, 'gambar_pendukung');
+        $this->validateSupportingImagePair($request, false);
+
         $data = [
             'judul_berita'        => $validated['judul_berita'],
             'tanggal_rilis'       => $validated['tanggal_rilis'] ?? null,
@@ -44,7 +47,6 @@ class BeritaIsuController extends Controller
             'admin_id'            => $validated['admin_id'],
         ];
 
-        // Main image
         $mainFile = $request->file('image') ?? $request->file('gambar_pendukung');
         if ($mainFile) {
             $data['gambar_pendukung'] = $this->handleImageUpload($mainFile, 'news');
@@ -52,21 +54,7 @@ class BeritaIsuController extends Controller
             $data['gambar_pendukung'] = $request->input('gambar_pendukung');
         }
 
-        // Supporting image 1
-        $supp1File = $request->file('supporting_image_1') ?? $request->file('gambar_pendukung_1');
-        if ($supp1File) {
-            $data['gambar_pendukung_1'] = $this->handleImageUpload($supp1File, 'news/gallery');
-        } elseif ($request->filled('gambar_pendukung_1') && $this->isValidPathString($request->input('gambar_pendukung_1'))) {
-            $data['gambar_pendukung_1'] = $request->input('gambar_pendukung_1');
-        }
-
-        // Supporting image 2
-        $supp2File = $request->file('supporting_image_2') ?? $request->file('gambar_pendukung_2');
-        if ($supp2File) {
-            $data['gambar_pendukung_2'] = $this->handleImageUpload($supp2File, 'news/gallery');
-        } elseif ($request->filled('gambar_pendukung_2') && $this->isValidPathString($request->input('gambar_pendukung_2'))) {
-            $data['gambar_pendukung_2'] = $request->input('gambar_pendukung_2');
-        }
+        $this->applySupportingImagesOnStore($request, 'news/gallery', $data);
 
         $berita = BeritaIsu::create($data);
 
@@ -103,14 +91,8 @@ class BeritaIsuController extends Controller
             'admin_id'                  => 'sometimes|required|exists:admins,admin_id',
         ]);
 
-        $mainFile = $request->file('image') ?? $request->file('gambar_pendukung');
-        $hasMainPathInput = $request->filled('gambar_pendukung')
-            && $this->isValidPathString($request->input('gambar_pendukung'));
-        if ($request->boolean('remove_image') && !$mainFile && !$hasMainPathInput) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'image' => ['Gambar utama wajib diisi dan tidak dapat dihapus tanpa gambar pengganti.'],
-            ]);
-        }
+        $this->rejectMainImageRemovalOnUpdate($request);
+        $this->validateSupportingImagePair($request, true, $berita);
 
         $data = [];
         foreach (['judul_berita', 'tanggal_rilis', 'isi_artikel_ringkas', 'topik_utama', 'admin_id'] as $field) {
@@ -135,43 +117,7 @@ class BeritaIsuController extends Controller
             $data['gambar_pendukung'] = $request->input('gambar_pendukung');
         }
 
-        $supp1File = $request->file('supporting_image_1') ?? $request->file('gambar_pendukung_1');
-        if ($supp1File) {
-            $oldPath = $berita->gambar_pendukung_1;
-            $newPath = $this->handleImageUpload($supp1File, 'news/gallery');
-            if ($newPath) {
-                $data['gambar_pendukung_1'] = $newPath;
-                if ($oldPath && $oldPath !== $newPath) {
-                    $pathsToDelete[] = $oldPath;
-                }
-            }
-        } elseif ($request->filled('gambar_pendukung_1') && $this->isValidPathString($request->input('gambar_pendukung_1'))) {
-            $data['gambar_pendukung_1'] = $request->input('gambar_pendukung_1');
-        } elseif ($request->boolean('remove_supporting_image_1')) {
-            if ($berita->gambar_pendukung_1) {
-                $pathsToDelete[] = $berita->gambar_pendukung_1;
-            }
-            $data['gambar_pendukung_1'] = null;
-        }
-
-        $supp2File = $request->file('supporting_image_2') ?? $request->file('gambar_pendukung_2');
-        if ($supp2File) {
-            $oldPath = $berita->gambar_pendukung_2;
-            $newPath = $this->handleImageUpload($supp2File, 'news/gallery');
-            if ($newPath) {
-                $data['gambar_pendukung_2'] = $newPath;
-                if ($oldPath && $oldPath !== $newPath) {
-                    $pathsToDelete[] = $oldPath;
-                }
-            }
-        } elseif ($request->filled('gambar_pendukung_2') && $this->isValidPathString($request->input('gambar_pendukung_2'))) {
-            $data['gambar_pendukung_2'] = $request->input('gambar_pendukung_2');
-        } elseif ($request->boolean('remove_supporting_image_2')) {
-            if ($berita->gambar_pendukung_2) {
-                $pathsToDelete[] = $berita->gambar_pendukung_2;
-            }
-            $data['gambar_pendukung_2'] = null;
-        }
+        $this->applySupportingImagesOnUpdate($request, $berita, 'news/gallery', $data, $pathsToDelete);
 
         $berita->update($data);
         $this->deleteStoredImages($pathsToDelete);

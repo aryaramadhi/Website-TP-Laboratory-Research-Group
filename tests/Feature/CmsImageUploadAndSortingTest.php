@@ -137,7 +137,8 @@ class CmsImageUploadAndSortingTest extends TestCase
     public function test_news_image_upload_and_update(): void
     {
         $mainFile = UploadedFile::fake()->image('news_main.jpg');
-        $suppFile = UploadedFile::fake()->image('news_supp.jpg');
+        $supp1File = UploadedFile::fake()->image('news_supp1.jpg');
+        $supp2File = UploadedFile::fake()->image('news_supp2.jpg');
 
         $response = $this->postJson('/api/berita-isu', [
             'judul_berita' => 'Berita Peluncuran Prototipe',
@@ -146,7 +147,8 @@ class CmsImageUploadAndSortingTest extends TestCase
             'topik_utama' => 'Riset',
             'admin_id' => $this->admin->admin_id,
             'image' => $mainFile,
-            'supporting_image_1' => $suppFile,
+            'supporting_image_1' => $supp1File,
+            'supporting_image_2' => $supp2File,
         ]);
 
         $response->assertStatus(201);
@@ -155,8 +157,10 @@ class CmsImageUploadAndSortingTest extends TestCase
 
         $this->assertNotNull($news->gambar_pendukung);
         $this->assertNotNull($news->gambar_pendukung_1);
+        $this->assertNotNull($news->gambar_pendukung_2);
         Storage::disk('public')->assertExists($news->gambar_pendukung);
         Storage::disk('public')->assertExists($news->gambar_pendukung_1);
+        Storage::disk('public')->assertExists($news->gambar_pendukung_2);
 
         // Clean up
         $news->delete();
@@ -199,6 +203,7 @@ class CmsImageUploadAndSortingTest extends TestCase
     {
         $mainFile = UploadedFile::fake()->image('main.jpg', 800, 600);
         $supp1File = UploadedFile::fake()->image('supp1.png', 600, 400);
+        $supp2File = UploadedFile::fake()->image('supp2.png', 600, 400);
 
         $createRes = $this->postJson('/api/berita-isu', [
             'judul_berita' => 'Berita Awal',
@@ -207,15 +212,18 @@ class CmsImageUploadAndSortingTest extends TestCase
             'admin_id' => $this->admin->admin_id,
             'image' => $mainFile,
             'supporting_image_1' => $supp1File,
+            'supporting_image_2' => $supp2File,
         ]);
 
         $createRes->assertStatus(201);
         $news = BeritaIsu::findOrFail($createRes->json('data.berita_id'));
         $origMain = $news->gambar_pendukung;
         $origSupp1 = $news->gambar_pendukung_1;
+        $origSupp2 = $news->gambar_pendukung_2;
 
         Storage::disk('public')->assertExists($origMain);
         Storage::disk('public')->assertExists($origSupp1);
+        Storage::disk('public')->assertExists($origSupp2);
 
         $updateRes = $this->postJson("/api/berita-isu/{$news->berita_id}", [
             '_method' => 'PUT',
@@ -227,8 +235,10 @@ class CmsImageUploadAndSortingTest extends TestCase
         $news->refresh();
         $this->assertEquals($origMain, $news->gambar_pendukung);
         $this->assertEquals($origSupp1, $news->gambar_pendukung_1);
+        $this->assertEquals($origSupp2, $news->gambar_pendukung_2);
         Storage::disk('public')->assertExists($origMain);
         Storage::disk('public')->assertExists($origSupp1);
+        Storage::disk('public')->assertExists($origSupp2);
     }
 
     public function test_old_image_deleted_only_after_replacement_when_unused_and_preserved_when_shared(): void
@@ -424,7 +434,7 @@ class CmsImageUploadAndSortingTest extends TestCase
         $this->get('/prestasi')->assertStatus(200);
     }
 
-    public function test_edit_image_removal_lifecycle_across_cms_modules(): void
+    public function test_paired_supporting_and_mandatory_main_image_rules_across_cms_modules(): void
     {
         $modules = [
             [
@@ -433,13 +443,13 @@ class CmsImageUploadAndSortingTest extends TestCase
                 'idField' => 'proyek_id',
                 'mainCol' => 'dokumentasi_visual_utama',
                 'createPayload' => [
-                    'judul_penelitian_simulasi' => 'Riset Edit Image UX',
+                    'judul_penelitian_simulasi' => 'Riset Pair UX',
                     'deskripsi_singkat' => 'Deskripsi riset awal',
                     'tanggal_mulai' => '2026-04-01',
                     'status_proyek' => 'Sedang Berjalan',
                     'admin_id' => $this->admin->admin_id,
                 ],
-                'updatePayload' => ['judul_penelitian_simulasi' => 'Riset Edit Image UX Updated'],
+                'updatePayload' => ['judul_penelitian_simulasi' => 'Riset Pair UX Updated'],
             ],
             [
                 'endpoint' => '/api/berita-isu',
@@ -447,12 +457,12 @@ class CmsImageUploadAndSortingTest extends TestCase
                 'idField' => 'berita_id',
                 'mainCol' => 'gambar_pendukung',
                 'createPayload' => [
-                    'judul_berita' => 'Berita Edit Image UX',
+                    'judul_berita' => 'Berita Pair UX',
                     'isi_artikel_ringkas' => 'Isi berita awal',
                     'tanggal_rilis' => '2026-04-01',
                     'admin_id' => $this->admin->admin_id,
                 ],
-                'updatePayload' => ['judul_berita' => 'Berita Edit Image UX Updated'],
+                'updatePayload' => ['judul_berita' => 'Berita Pair UX Updated'],
             ],
             [
                 'endpoint' => '/api/prestasi-pencapaian',
@@ -460,16 +470,46 @@ class CmsImageUploadAndSortingTest extends TestCase
                 'idField' => 'prestasi_id',
                 'mainCol' => 'gambar_utama',
                 'createPayload' => [
-                    'nama_prestasi' => 'Prestasi Edit Image UX',
+                    'nama_prestasi' => 'Prestasi Pair UX',
                     'tahun_diperoleh' => 2026,
                     'deskripsi' => 'Deskripsi prestasi awal',
                     'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
                 ],
-                'updatePayload' => ['nama_prestasi' => 'Prestasi Edit Image UX Updated'],
+                'updatePayload' => ['nama_prestasi' => 'Prestasi Pair UX Updated'],
             ],
         ];
 
         foreach ($modules as $cfg) {
+            // 1. Add without main image must fail with 422.
+            $missingMainRes = $this->postJson($cfg['endpoint'], $cfg['createPayload']);
+            $missingMainRes->assertStatus(422);
+            $missingMainRes->assertJsonValidationErrors('image');
+
+            // 2. Add with only supporting_image_1 or only supporting_image_2 must fail with 422.
+            $onlySupp1Res = $this->postJson($cfg['endpoint'], array_merge($cfg['createPayload'], [
+                'image' => UploadedFile::fake()->image('main.jpg'),
+                'supporting_image_1' => UploadedFile::fake()->image('supp1.jpg'),
+            ]));
+            $onlySupp1Res->assertStatus(422);
+            $onlySupp1Res->assertJsonValidationErrors(['supporting_image_1', 'supporting_image_2']);
+
+            $onlySupp2Res = $this->postJson($cfg['endpoint'], array_merge($cfg['createPayload'], [
+                'image' => UploadedFile::fake()->image('main.jpg'),
+                'supporting_image_2' => UploadedFile::fake()->image('supp2.jpg'),
+            ]));
+            $onlySupp2Res->assertStatus(422);
+            $onlySupp2Res->assertJsonValidationErrors(['supporting_image_1', 'supporting_image_2']);
+
+            // 3. Add with valid main image and no supporting images succeeds.
+            $noPairRes = $this->postJson($cfg['endpoint'], array_merge($cfg['createPayload'], [
+                'image' => UploadedFile::fake()->image('main-only.jpg'),
+            ]));
+            $noPairRes->assertStatus(201);
+            $noPairRecord = $cfg['model']::findOrFail($noPairRes->json("data.{$cfg['idField']}"));
+            $this->assertNull($noPairRecord->gambar_pendukung_1);
+            $this->assertNull($noPairRecord->gambar_pendukung_2);
+
+            // 4. Add with valid main image and paired supporting images succeeds.
             $createRes = $this->postJson($cfg['endpoint'], array_merge($cfg['createPayload'], [
                 'image' => UploadedFile::fake()->image('main-orig.jpg'),
                 'supporting_image_1' => UploadedFile::fake()->image('supp1-orig.jpg'),
@@ -486,7 +526,7 @@ class CmsImageUploadAndSortingTest extends TestCase
             Storage::disk('public')->assertExists($origSupp1);
             Storage::disk('public')->assertExists($origSupp2);
 
-            // Editing without image flags preserves all saved files.
+            // 5. Edit without changing images preserves main image and both supporting images.
             $keepRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
                 '_method' => 'PUT',
             ]));
@@ -496,42 +536,78 @@ class CmsImageUploadAndSortingTest extends TestCase
             $this->assertSame($origSupp1, $record->gambar_pendukung_1);
             $this->assertSame($origSupp2, $record->gambar_pendukung_2);
 
-            // Removing main image without a replacement fails validation and preserves old file.
-            $blockedMainRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
+            // 6. Attempt remove_image=1 (with or without replacement) must fail with 422 and preserve old main image.
+            $removeMainRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
                 '_method' => 'PUT',
                 'remove_image' => '1',
             ]));
-            $blockedMainRes->assertStatus(422);
-            $blockedMainRes->assertJsonValidationErrors('image');
+            $removeMainRes->assertStatus(422);
+            $removeMainRes->assertJsonValidationErrors('image');
             Storage::disk('public')->assertExists($origMain);
 
-            // Removing only supporting_image_1 clears it and removes unreferenced file.
-            $removeSupp1Res = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
+            // 7. Partial supporting replacement or partial removal must fail with 422 and preserve old files.
+            $partialCases = [
+                ['supporting_image_1' => UploadedFile::fake()->image('only1.jpg')],
+                ['supporting_image_2' => UploadedFile::fake()->image('only2.jpg')],
+                ['remove_supporting_image_1' => '1'],
+                ['remove_supporting_image_2' => '1'],
+                [
+                    'supporting_image_1' => UploadedFile::fake()->image('mix1.jpg'),
+                    'remove_supporting_image_2' => '1',
+                ],
+                [
+                    'supporting_image_1' => UploadedFile::fake()->image('mix-both.jpg'),
+                    'supporting_image_2' => UploadedFile::fake()->image('mix-both2.jpg'),
+                    'remove_supporting_image_1' => '1',
+                    'remove_supporting_image_2' => '1',
+                ],
+            ];
+            foreach ($partialCases as $partialPayload) {
+                $failRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge(
+                    $cfg['updatePayload'],
+                    ['_method' => 'PUT'],
+                    $partialPayload
+                ));
+                $failRes->assertStatus(422);
+                Storage::disk('public')->assertExists($origSupp1);
+                Storage::disk('public')->assertExists($origSupp2);
+            }
+
+            // 8. Replacing both supporting images and main image succeeds and deletes previous files.
+            $replacePairRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
+                '_method' => 'PUT',
+                'image' => UploadedFile::fake()->image('main-new.png'),
+                'supporting_image_1' => UploadedFile::fake()->image('supp1-new.png'),
+                'supporting_image_2' => UploadedFile::fake()->image('supp2-new.png'),
+            ]));
+            $replacePairRes->assertStatus(200);
+            $record->refresh();
+            $newMain = $record->{$cfg['mainCol']};
+            $newSupp1 = $record->gambar_pendukung_1;
+            $newSupp2 = $record->gambar_pendukung_2;
+            $this->assertNotSame($origMain, $newMain);
+            $this->assertNotSame($origSupp1, $newSupp1);
+            $this->assertNotSame($origSupp2, $newSupp2);
+            Storage::disk('public')->assertMissing($origMain);
+            Storage::disk('public')->assertMissing($origSupp1);
+            Storage::disk('public')->assertMissing($origSupp2);
+            Storage::disk('public')->assertExists($newMain);
+            Storage::disk('public')->assertExists($newSupp1);
+            Storage::disk('public')->assertExists($newSupp2);
+
+            // 9. Removing both supporting images together clears both columns and deletes both unreferenced files.
+            $removePairRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
                 '_method' => 'PUT',
                 'remove_supporting_image_1' => '1',
-            ]));
-            $removeSupp1Res->assertStatus(200);
-            $record->refresh();
-            $this->assertNull($record->gambar_pendukung_1);
-            $this->assertSame($origSupp2, $record->gambar_pendukung_2);
-            Storage::disk('public')->assertMissing($origSupp1);
-            Storage::disk('public')->assertExists($origSupp2);
-
-            // Replacing main image alongside remove_image=1 succeeds and deletes old main file.
-            // Removing supporting_image_2 in the same update clears it too.
-            $replaceRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
-                '_method' => 'PUT',
-                'remove_image' => '1',
-                'image' => UploadedFile::fake()->image('main-replacement.png'),
                 'remove_supporting_image_2' => '1',
             ]));
-            $replaceRes->assertStatus(200);
+            $removePairRes->assertStatus(200);
             $record->refresh();
-            $this->assertNotSame($origMain, $record->{$cfg['mainCol']});
+            $this->assertNull($record->gambar_pendukung_1);
             $this->assertNull($record->gambar_pendukung_2);
-            Storage::disk('public')->assertMissing($origMain);
-            Storage::disk('public')->assertExists($record->{$cfg['mainCol']});
-            Storage::disk('public')->assertMissing($origSupp2);
+            Storage::disk('public')->assertExists($newMain);
+            Storage::disk('public')->assertMissing($newSupp1);
+            Storage::disk('public')->assertMissing($newSupp2);
         }
     }
 
@@ -543,12 +619,14 @@ class CmsImageUploadAndSortingTest extends TestCase
             'tanggal_rilis' => '2026-04-01',
             'admin_id' => $this->admin->admin_id,
             'image' => UploadedFile::fake()->image('main-1.jpg'),
-            'supporting_image_1' => UploadedFile::fake()->image('shared-gallery.jpg'),
+            'supporting_image_1' => UploadedFile::fake()->image('shared-gallery-1.jpg'),
+            'supporting_image_2' => UploadedFile::fake()->image('shared-gallery-2.jpg'),
         ]);
         $sharedRes->assertStatus(201);
         $firstId = $sharedRes->json('data.berita_id');
         $first = BeritaIsu::findOrFail($firstId);
-        $sharedPath = $first->gambar_pendukung_1;
+        $sharedPath1 = $first->gambar_pendukung_1;
+        $sharedPath2 = $first->gambar_pendukung_2;
 
         BeritaIsu::create([
             'judul_berita' => 'Berita Berbagi Gambar 2',
@@ -556,17 +634,21 @@ class CmsImageUploadAndSortingTest extends TestCase
             'tanggal_rilis' => '2026-04-02',
             'admin_id' => $this->admin->admin_id,
             'gambar_pendukung' => 'news/static-other.jpg',
-            'gambar_pendukung_1' => $sharedPath,
+            'gambar_pendukung_1' => $sharedPath1,
+            'gambar_pendukung_2' => $sharedPath2,
         ]);
 
         $clearRes = $this->postJson("/api/berita-isu/{$firstId}", [
             '_method' => 'PUT',
             'judul_berita' => 'Berita Berbagi Gambar 1 Edited',
             'remove_supporting_image_1' => '1',
+            'remove_supporting_image_2' => '1',
         ]);
         $clearRes->assertStatus(200);
         $first->refresh();
         $this->assertNull($first->gambar_pendukung_1);
-        Storage::disk('public')->assertExists($sharedPath);
+        $this->assertNull($first->gambar_pendukung_2);
+        Storage::disk('public')->assertExists($sharedPath1);
+        Storage::disk('public')->assertExists($sharedPath2);
     }
 }

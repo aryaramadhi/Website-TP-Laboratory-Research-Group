@@ -112,7 +112,9 @@
                 </div>
             </div>
             <div class="form-group">
-                <label for="{{ $id }}-image" class="form-label">Gambar prestasi & pencapaian</label>
+                <label for="{{ $id }}-image" class="form-label">
+                    Gambar prestasi & pencapaian {{ $isEdit ? '(Kosongkan jika tidak diganti)' : '' }}
+                </label>
                 <div class="form-file-group">
                     <input
                         type="file"
@@ -133,13 +135,6 @@
                         <span class="form-image-preview__filename" data-preview-name></span>
                         <span class="form-image-preview__caption" data-preview-caption></span>
                     </div>
-                    <button
-                        type="button"
-                        class="form-image-preview__remove"
-                        data-clear-file
-                        aria-label="Batalkan pilihan gambar utama"
-                        hidden
-                    >&times;</button>
                 </div>
                 <div class="form-field-error" id="{{ $id }}-image-error" role="alert" style="display: none;">
                     <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -150,86 +145,91 @@
                     <span class="form-error-text"></span>
                 </div>
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="{{ $id }}-supporting-image-1" class="form-label">
-                        Gambar Pendukung 1 (Kiri) (Opsional)
-                    </label>
-                    <div class="form-file-group">
-                        <input
-                            type="file"
-                            id="{{ $id }}-supporting-image-1"
-                            name="supporting_image_1"
-                            class="form-file-input"
-                            accept="image/*"
-                            data-file-input
-                        >
-                        <div class="form-file-custom">
-                            <span class="form-file-text" data-file-text>Pilih File</span>
+            <div class="form-supporting-group" data-supporting-group>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ $id }}-supporting-image-1" class="form-label">
+                            Gambar Pendukung 1 (Kiri) (Opsional)
+                        </label>
+                        <div class="form-file-group">
+                            <input
+                                type="file"
+                                id="{{ $id }}-supporting-image-1"
+                                name="supporting_image_1"
+                                class="form-file-input"
+                                accept="image/*"
+                                data-file-input
+                            >
+                            <div class="form-file-custom">
+                                <span class="form-file-text" data-file-text>{{ $isEdit ? 'Pilih File (Biarkan kosong jika tidak diganti)' : 'Pilih File' }}</span>
+                            </div>
+                        </div>
+                        <div class="form-image-preview" id="{{ $id }}-supporting-image-1-preview" data-image-preview>
+                            <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
+                            <div class="form-image-preview__info">
+                                <span class="form-image-preview__filename" data-preview-name></span>
+                                <span class="form-image-preview__caption" data-preview-caption></span>
+                            </div>
+                            <button
+                                type="button"
+                                class="form-image-preview__remove"
+                                data-clear-file
+                                aria-label="Hapus atau batalkan pasangan gambar pendukung"
+                                hidden
+                            >&times;</button>
+                        </div>
+                        <div class="form-field-error" id="{{ $id }}-supporting_image_1-error" role="alert" style="display: none;">
+                            <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            <span class="form-error-text"></span>
                         </div>
                     </div>
-                    <div class="form-image-preview" id="{{ $id }}-supporting-image-1-preview" data-image-preview>
-                        <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
-                        <div class="form-image-preview__info">
-                            <span class="form-image-preview__filename" data-preview-name></span>
-                            <span class="form-image-preview__caption" data-preview-caption></span>
+                    <div class="form-group">
+                        <label for="{{ $id }}-supporting-image-2" class="form-label">
+                            Gambar Pendukung 2 (Kanan) (Opsional)
+                        </label>
+                        <div class="form-file-group">
+                            <input
+                                type="file"
+                                id="{{ $id }}-supporting-image-2"
+                                name="supporting_image_2"
+                                class="form-file-input"
+                                accept="image/*"
+                                data-file-input
+                            >
+                            <div class="form-file-custom">
+                                <span class="form-file-text" data-file-text>{{ $isEdit ? 'Pilih File (Biarkan kosong jika tidak diganti)' : 'Pilih File' }}</span>
+                            </div>
                         </div>
-                        <button
-                            type="button"
-                            class="form-image-preview__remove"
-                            data-clear-file
-                            aria-label="Batalkan pilihan gambar pendukung 1"
-                            hidden
-                        >&times;</button>
-                    </div>
-                    <div class="form-field-error" id="{{ $id }}-supporting_image_1-error" role="alert" style="display: none;">
-                        <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                        </svg>
-                        <span class="form-error-text"></span>
+                        <div class="form-image-preview" id="{{ $id }}-supporting-image-2-preview" data-image-preview>
+                            <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
+                            <div class="form-image-preview__info">
+                                <span class="form-image-preview__filename" data-preview-name></span>
+                                <span class="form-image-preview__caption" data-preview-caption></span>
+                            </div>
+                            <button
+                                type="button"
+                                class="form-image-preview__remove"
+                                data-clear-file
+                                aria-label="Hapus atau batalkan pasangan gambar pendukung"
+                                hidden
+                            >&times;</button>
+                        </div>
+                        <div class="form-field-error" id="{{ $id }}-supporting_image_2-error" role="alert" style="display: none;">
+                            <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            <span class="form-error-text"></span>
+                        </div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="{{ $id }}-supporting-image-2" class="form-label">
-                        Gambar Pendukung 2 (Kanan) (Opsional)
-                    </label>
-                    <div class="form-file-group">
-                        <input
-                            type="file"
-                            id="{{ $id }}-supporting-image-2"
-                            name="supporting_image_2"
-                            class="form-file-input"
-                            accept="image/*"
-                            data-file-input
-                        >
-                        <div class="form-file-custom">
-                            <span class="form-file-text" data-file-text>Pilih File</span>
-                        </div>
-                    </div>
-                    <div class="form-image-preview" id="{{ $id }}-supporting-image-2-preview" data-image-preview>
-                        <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
-                        <div class="form-image-preview__info">
-                            <span class="form-image-preview__filename" data-preview-name></span>
-                            <span class="form-image-preview__caption" data-preview-caption></span>
-                        </div>
-                        <button
-                            type="button"
-                            class="form-image-preview__remove"
-                            data-clear-file
-                            aria-label="Batalkan pilihan gambar pendukung 2"
-                            hidden
-                        >&times;</button>
-                    </div>
-                    <div class="form-field-error" id="{{ $id }}-supporting_image_2-error" role="alert" style="display: none;">
-                        <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                        </svg>
-                        <span class="form-error-text"></span>
-                    </div>
+                <div class="form-supporting-status" id="{{ $id }}-supporting-status" data-supporting-status role="status" aria-live="polite" hidden>
+                    Pasangan gambar pendukung akan dihapus saat perubahan disimpan.
                 </div>
             </div>
             <div class="form-group">
