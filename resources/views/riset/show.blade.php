@@ -61,8 +61,9 @@
             data-item-date="{{ $research?->start_date?->format('Y-m-d') ?? '' }}"
             data-item-status="{{ $itemStatus }}"
             data-item-description="{{ $research?->content ?? $itemExcerpt }}"
-            data-item-supporting-image-1=""
-            data-item-supporting-image-2=""
+            data-item-image="{{ $research?->main_image ?? '' }}"
+            data-item-supporting-image-1="{{ $research?->gambar_pendukung_1 ?? '' }}"
+            data-item-supporting-image-2="{{ $research?->gambar_pendukung_2 ?? '' }}"
         >
             <div class="research-detail__featured">
                 <img
@@ -70,6 +71,7 @@
                     alt="{{ $itemTitle }}"
                     class="research-detail__featured-img"
                     data-research-detail-image
+                    onerror="this.onerror=null;this.src='{{ asset('images/research/detail-featured.jpg') }}';"
                 >
             </div>
 

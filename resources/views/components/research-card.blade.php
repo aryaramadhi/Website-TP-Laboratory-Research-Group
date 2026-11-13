@@ -19,6 +19,9 @@
     $imageUrl = (str_starts_with($image, 'http://') || str_starts_with($image, 'https://'))
         ? $image
         : (str_starts_with($image, 'images/') ? asset($image) : asset('storage/' . ltrim($image, '/')));
+    $visibleExcerpt = $excerpt
+        ? trim(preg_replace('/[ \t]{2,}/', ' ', preg_replace('/\s*\[\[(?:RESEARCH|NEWS|ACHIEVEMENT)_IMAGES\]\]\s*/i', ' ', (string) $excerpt)))
+        : '';
 @endphp
 
 <article {{ $attributes->class(['card', 'research-card', 'editable-item', 'research-card--reverse' => $reverse]) }}
@@ -30,11 +33,12 @@
     data-item-status="{{ $status }}"
     data-item-description="{{ $content ?? $excerpt }}"
     data-item-excerpt="{{ $excerpt }}"
+    data-item-image="{{ $image ?? '' }}"
     data-item-supporting-image-1="{{ $supportingImage1 ?? '' }}"
     data-item-supporting-image-2="{{ $supportingImage2 ?? '' }}"
 >
     <div class="research-card__media">
-        <img src="{{ $imageUrl }}" alt="{{ $title }}" class="research-card__image">
+        <img src="{{ $imageUrl }}" alt="{{ $title }}" class="research-card__image" onerror="this.onerror=null;this.src='{{ asset('images/research/research-1.jpg') }}';">
         <div class="research-card__badge research-card__badge--{{ $badgePos }}">
             <x-status-badge :status="$status" />
         </div>
@@ -46,9 +50,9 @@
             <a href="{{ $href }}">{{ $title }}</a>
         </h3>
 
-        @if ($excerpt)
+        @if ($visibleExcerpt)
             <p class="research-card__excerpt">
-                {{ $excerpt }}
+                {{ $visibleExcerpt }}
             </p>
         @endif
 

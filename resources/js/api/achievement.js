@@ -13,6 +13,12 @@ export async function createAchievement(payload, options = {}) {
 }
 
 export async function updateAchievement(id, payload, options = {}) {
+    if (typeof FormData !== 'undefined' && payload instanceof FormData) {
+        if (!payload.has('_method')) {
+            payload.append('_method', 'PUT');
+        }
+        return apiClient.post(`/prestasi-pencapaian/${id}`, payload, options);
+    }
     return apiClient.put(`/prestasi-pencapaian/${id}`, payload, options);
 }
 

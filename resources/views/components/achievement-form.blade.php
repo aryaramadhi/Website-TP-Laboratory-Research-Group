@@ -119,12 +119,27 @@
                         id="{{ $id }}-image"
                         name="image"
                         class="form-file-input"
-                        accept="image/jpeg,image/png,image/jpg,image/webp,image/svg+xml"
+                        accept="image/jpeg,image/png,image/jpg,image/webp"
                         data-file-input
+                        {{ $isEdit ? '' : 'required' }}
                     >
                     <div class="form-file-custom">
                         <span class="form-file-text" data-file-text>{{ $isEdit ? 'Pilih File (Biarkan kosong jika tidak diganti)' : 'Pilih File' }}</span>
                     </div>
+                </div>
+                <div class="form-image-preview" id="{{ $id }}-image-preview" data-image-preview>
+                    <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
+                    <div class="form-image-preview__info">
+                        <span class="form-image-preview__filename" data-preview-name></span>
+                        <span class="form-image-preview__caption" data-preview-caption></span>
+                    </div>
+                    <button
+                        type="button"
+                        class="form-image-preview__remove"
+                        data-clear-file
+                        aria-label="Batalkan pilihan gambar utama"
+                        hidden
+                    >&times;</button>
                 </div>
                 <div class="form-field-error" id="{{ $id }}-image-error" role="alert" style="display: none;">
                     <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -153,6 +168,20 @@
                             <span class="form-file-text" data-file-text>Pilih File</span>
                         </div>
                     </div>
+                    <div class="form-image-preview" id="{{ $id }}-supporting-image-1-preview" data-image-preview>
+                        <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
+                        <div class="form-image-preview__info">
+                            <span class="form-image-preview__filename" data-preview-name></span>
+                            <span class="form-image-preview__caption" data-preview-caption></span>
+                        </div>
+                        <button
+                            type="button"
+                            class="form-image-preview__remove"
+                            data-clear-file
+                            aria-label="Batalkan pilihan gambar pendukung 1"
+                            hidden
+                        >&times;</button>
+                    </div>
                     <div class="form-field-error" id="{{ $id }}-supporting_image_1-error" role="alert" style="display: none;">
                         <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <circle cx="12" cy="12" r="10"></circle>
@@ -179,6 +208,20 @@
                             <span class="form-file-text" data-file-text>Pilih File</span>
                         </div>
                     </div>
+                    <div class="form-image-preview" id="{{ $id }}-supporting-image-2-preview" data-image-preview>
+                        <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
+                        <div class="form-image-preview__info">
+                            <span class="form-image-preview__filename" data-preview-name></span>
+                            <span class="form-image-preview__caption" data-preview-caption></span>
+                        </div>
+                        <button
+                            type="button"
+                            class="form-image-preview__remove"
+                            data-clear-file
+                            aria-label="Batalkan pilihan gambar pendukung 2"
+                            hidden
+                        >&times;</button>
+                    </div>
                     <div class="form-field-error" id="{{ $id }}-supporting_image_2-error" role="alert" style="display: none;">
                         <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <circle cx="12" cy="12" r="10"></circle>
@@ -190,7 +233,15 @@
                 </div>
             </div>
             <div class="form-group">
-                <label for="{{ $id }}-content" class="form-label">Isi prestasi & pencapaian</label>
+                <div class="form-label-row">
+                    <label for="{{ $id }}-content" class="form-label">Isi prestasi & pencapaian</label>
+                    <button
+                        type="button"
+                        class="btn-insert-gallery"
+                        data-insert-gallery="[[ACHIEVEMENT_IMAGES]]"
+                        data-target-textarea="{{ $id }}-content"
+                    >+ Sisipkan Gambar Pendukung</button>
+                </div>
                 <textarea
                     id="{{ $id }}-content"
                     name="content"
@@ -199,9 +250,10 @@
                     rows="6"
                     required
                 ></textarea>
-                <span class="form-helper-text" style="display: block; font-size: 0.8125rem; color: var(--color-primary-400, #64748b); margin-top: 6px;">
-                    Gunakan [[ACHIEVEMENT_IMAGES]] pada deskripsi untuk menentukan posisi gambar pendukung.
+                <span class="form-helper-text">
+                    Gunakan tombol "+ Sisipkan Gambar Pendukung" atau ketik [[ACHIEVEMENT_IMAGES]] untuk menentukan posisi gambar pendukung.
                 </span>
+                <div class="form-gallery-notice" id="{{ $id }}-gallery-notice" data-gallery-notice role="status" aria-live="polite" hidden></div>
                 <div class="form-field-error" id="{{ $id }}-content-error" role="alert" style="display: none;">
                     <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="10"></circle>

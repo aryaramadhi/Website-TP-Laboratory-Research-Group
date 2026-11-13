@@ -19,6 +19,9 @@
     $imageUrl = (str_starts_with($image, 'http://') || str_starts_with($image, 'https://'))
         ? $image
         : (str_starts_with($image, 'images/') ? asset($image) : asset('storage/' . ltrim($image, '/')));
+    $visibleExcerpt = $excerpt
+        ? trim(preg_replace('/[ \t]{2,}/', ' ', preg_replace('/\s*\[\[(?:RESEARCH|NEWS|ACHIEVEMENT)_IMAGES\]\]\s*/i', ' ', (string) $excerpt)))
+        : '';
 @endphp
 
 <article {{ $attributes->class(['card', 'news-card', 'editable-item', 'news-card--reverse' => $reverse]) }}
@@ -31,12 +34,13 @@
     data-item-content="{{ $content ?? $excerpt }}"
     data-item-description="{{ $content ?? $excerpt }}"
     data-item-excerpt="{{ $excerpt }}"
+    data-item-image="{{ $image ?? '' }}"
     data-item-supporting-image-1="{{ $supportingImage1 ?? '' }}"
     data-item-supporting-image-2="{{ $supportingImage2 ?? '' }}"
 >
     <div class="news-card__media">
         <a href="{{ $href }}">
-            <img src="{{ $imageUrl }}" alt="{{ $title }}" class="news-card__image">
+            <img src="{{ $imageUrl }}" alt="{{ $title }}" class="news-card__image" onerror="this.onerror=null;this.src='{{ asset('images/news/news-1.jpg') }}';">
         </a>
         <x-admin-edit-button modal="edit-news-modal" label="Edit Berita" />
     </div>
@@ -46,9 +50,9 @@
             <a href="{{ $href }}">{{ $title }}</a>
         </h3>
 
-        @if ($excerpt)
+        @if ($visibleExcerpt)
             <p class="news-card__excerpt">
-                {{ $excerpt }}
+                {{ $visibleExcerpt }}
                 @if ($readMore)
                     <a href="{{ $href }}" class="news-card__more">Baca Selengkapnya</a>
                 @endif

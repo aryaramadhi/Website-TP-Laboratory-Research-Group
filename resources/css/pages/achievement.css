@@ -185,6 +185,17 @@
     font-weight: 700;
 }
 
+.achievement-detail__document-link {
+    color: var(--color-primary-300);
+    text-decoration: underline;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.achievement-detail__document-link:hover {
+    color: var(--color-primary-400);
+}
+
 /* Supporting Gallery Images */
 .achievement-detail__gallery {
     display: flex;

@@ -5,7 +5,9 @@
     $itemTitle = $achievement?->title ?? 'Detail Prestasi & Pencapaian';
     $itemDate = $achievement?->date ? $achievement->date->translatedFormat('d F Y') : '';
     $itemAuthor = $achievement?->author ?? 'TP Laboratory Research Group';
-    $itemImage = $achievement?->main_image ?? 'images/achievements/detail-featured.jpg';
+    $rawProof = $achievement?->dokumentasi_bukti ?? $achievement?->main_image ?? null;
+    $isPdf = $rawProof && str_ends_with(strtolower($rawProof), '.pdf');
+    $itemImage = ($rawProof && !$isPdf) ? $rawProof : 'images/achievements/detail-featured.jpg';
     $itemExcerpt = $achievement?->excerpt ?? '';
 @endphp
 
@@ -60,15 +62,18 @@
             data-item-date="{{ $achievement?->date?->format('Y-m-d') ?? '' }}"
             data-item-content="{{ $achievement?->content ?? $itemExcerpt }}"
             data-item-description="{{ $achievement?->content ?? $itemExcerpt }}"
-            data-item-supporting-image-1=""
-            data-item-supporting-image-2=""
+            data-item-image="{{ $rawProof ?? '' }}"
+            data-item-document="{{ $isPdf ? asset('storage/' . ltrim($rawProof, '/')) : '' }}"
+            data-item-supporting-image-1="{{ $achievement?->gambar_pendukung_1 ?? '' }}"
+            data-item-supporting-image-2="{{ $achievement?->gambar_pendukung_2 ?? '' }}"
         >
             <div class="achievement-detail__featured">
                 <img
-                    src="{{ $achievement?->image_url ?? asset('images/achievements/detail-featured.jpg') }}"
+                    src="{{ ($achievement?->image_url && !$isPdf) ? $achievement->image_url : asset('images/achievements/detail-featured.jpg') }}"
                     alt="{{ $itemTitle }}"
                     class="achievement-detail__featured-img"
                     data-achievement-detail-image
+                    onerror="this.onerror=null;this.src='{{ asset('images/achievements/detail-featured.jpg') }}';"
                 >
             </div>
 
@@ -101,6 +106,15 @@
                     @elseif ($achievement && !empty($achievement->excerpt))
                         <p class="achievement-detail__paragraph">
                             {!! nl2br(e($achievement->excerpt)) !!}
+                        </p>
+                    @endif
+
+                    @if ($isPdf && $rawProof)
+                        <p class="achievement-detail__paragraph achievement-detail__document">
+                            <strong>Dokumen Bukti:</strong>
+                            <a href="{{ asset('storage/' . ltrim($rawProof, '/')) }}" target="_blank" rel="noopener noreferrer" class="achievement-detail__document-link">
+                                Lihat {{ basename($rawProof) }} (PDF)
+                            </a>
                         </p>
                     @endif
                 </div>

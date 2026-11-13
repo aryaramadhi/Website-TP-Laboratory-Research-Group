@@ -13,6 +13,12 @@ export async function createNews(payload, options = {}) {
 }
 
 export async function updateNews(id, payload, options = {}) {
+    if (typeof FormData !== 'undefined' && payload instanceof FormData) {
+        if (!payload.has('_method')) {
+            payload.append('_method', 'PUT');
+        }
+        return apiClient.post(`/berita-isu/${id}`, payload, options);
+    }
     return apiClient.put(`/berita-isu/${id}`, payload, options);
 }
 

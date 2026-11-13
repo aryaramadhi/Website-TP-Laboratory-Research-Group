@@ -3,6 +3,14 @@ import { extractData } from '../api/client.js';
 
 export const NEUTRAL_AUTHOR = 'TP Laboratory Research Group';
 
+export function isDocumentFile(url) {
+    if (!url || typeof url !== 'string') {
+        return false;
+    }
+    const clean = url.split('?')[0].split('#')[0].trim().toLowerCase();
+    return clean.endsWith('.pdf') || clean.endsWith('.doc') || clean.endsWith('.docx');
+}
+
 export function sanitizeImageUrl(url, fallback = '/images/news/news-1.jpg') {
     if (!url || typeof url !== 'string') {
         return fallback;
@@ -100,6 +108,14 @@ export function formatIndonesianDate(dateString) {
     }
 }
 
+export function stripGalleryMarkers(text) {
+    if (typeof text !== 'string') return '';
+    return text
+        .replace(/\s*\[\[(?:RESEARCH|NEWS|ACHIEVEMENT)_IMAGES\]\]\s*/gi, ' ')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+}
+
 export function mapNewsItem(raw) {
     if (!raw || typeof raw !== 'object') {
         return null;
@@ -113,8 +129,16 @@ export function mapNewsItem(raw) {
     const category = raw.topik_utama ?? raw.category ?? '';
 
     const rawImage = raw.gambar_pendukung ?? raw.main_image ?? raw.image ?? null;
-    const imageUrl = sanitizeImageUrl(rawImage, '/images/news/news-1.jpg');
+    const isDoc = isDocumentFile(rawImage);
+    const imageUrl = isDoc
+        ? '/images/news/news-1.jpg'
+        : sanitizeImageUrl(rawImage, '/images/news/news-1.jpg');
     const author = resolveNewsAuthor(raw);
+
+    const rawSupp1 = raw.supporting_image_1_url ?? raw.gambar_pendukung_1 ?? raw.supporting_image_1 ?? null;
+    const rawSupp2 = raw.supporting_image_2_url ?? raw.gambar_pendukung_2 ?? raw.supporting_image_2 ?? null;
+    const supportingImage1 = (rawSupp1 && typeof rawSupp1 === 'string' && rawSupp1.trim()) ? sanitizeImageUrl(rawSupp1, '') : null;
+    const supportingImage2 = (rawSupp2 && typeof rawSupp2 === 'string' && rawSupp2.trim()) ? sanitizeImageUrl(rawSupp2, '') : null;
 
     return {
         id,
@@ -124,6 +148,10 @@ export function mapNewsItem(raw) {
         date,
         category,
         image: imageUrl,
+        rawImage,
+        supportingImage1,
+        supportingImage2,
+        isDocument: isDoc,
         author,
         href: id ? `/berita/${id}` : '#',
         raw,
@@ -141,7 +169,13 @@ export function renderNewsCard(item, index) {
     const safeDate = escapeHtml(item.date || '');
     const safeCategory = escapeHtml(item.category || '');
     const safeHref = escapeHtml(item.href || '#');
-    const safeImage = escapeHtml(sanitizeImageUrl(item.image, '/images/news/news-1.jpg'));
+    const imageCandidate = isDocumentFile(item.image) ? '/images/news/news-1.jpg' : item.image;
+    const safeImage = escapeHtml(sanitizeImageUrl(imageCandidate, '/images/news/news-1.jpg'));
+    const rawCandidate = item.rawImage ?? item.raw?.gambar_pendukung ?? item.image ?? '';
+    const safeRawImage = (typeof rawCandidate === 'string' && /^(javascript|data|vbscript):/i.test(rawCandidate.trim()))
+        ? ''
+        : escapeHtml(rawCandidate);
+    const safeVisibleExcerpt = escapeHtml(stripGalleryMarkers(item.excerpt));
 
     const actionHtml = !isReverse
         ? `<img src="/images/icons/chevron-right.png" alt="" class="news-card__link-icon" aria-hidden="true">
@@ -157,15 +191,16 @@ export function renderNewsCard(item, index) {
             data-item-author="${safeAuthor}"
             data-item-date="${safeDate}"
             data-item-category="${safeCategory}"
-            data-item-content="${safeExcerpt}"
-            data-item-description="${safeExcerpt}"
+            data-item-content="${escapeHtml(item.content || item.excerpt)}"
+            data-item-description="${escapeHtml(item.content || item.excerpt)}"
             data-item-excerpt="${safeExcerpt}"
-            data-item-supporting-image-1=""
-            data-item-supporting-image-2=""
+            data-item-image="${safeRawImage}"
+            data-item-supporting-image-1="${escapeHtml(item.supportingImage1 || '')}"
+            data-item-supporting-image-2="${escapeHtml(item.supportingImage2 || '')}"
         >
             <div class="news-card__media">
                 <a href="${safeHref}">
-                    <img src="${safeImage}" alt="${safeTitle}" class="news-card__image">
+                    <img src="${safeImage}" alt="${safeTitle}" class="news-card__image" onerror="this.onerror=null;this.src='/images/news/news-1.jpg';">
                 </a>
                 <button
                     type="button"
@@ -185,7 +220,7 @@ export function renderNewsCard(item, index) {
                     <a href="${safeHref}">${safeTitle}</a>
                 </h3>
 
-                ${safeExcerpt ? `<p class="news-card__excerpt">${safeExcerpt}</p>` : ''}
+                ${safeVisibleExcerpt ? `<p class="news-card__excerpt">${safeVisibleExcerpt}</p>` : ''}
 
                 <div class="news-card__action">
                     <a href="${safeHref}" class="news-card__link">
@@ -197,7 +232,40 @@ export function renderNewsCard(item, index) {
     `;
 }
 
-export function renderDetailContent(paragraphsEl, bodyEl, contentText) {
+export function createGalleryElement(prefix, img1, img2, altTitle = '') {
+    if (!img1 && !img2) return null;
+
+    const gallery = document.createElement('div');
+    gallery.className = `${prefix}-detail__gallery`;
+
+    if (img1) {
+        const item1 = document.createElement('div');
+        item1.className = `${prefix}-detail__gallery-item ${img2 ? `${prefix}-detail__gallery-item--wide` : ''}`;
+        const img = document.createElement('img');
+        img.src = sanitizeImageUrl(img1);
+        img.alt = altTitle ? `${altTitle} - Gambar Pendukung 1` : 'Gambar Pendukung 1';
+        img.className = `${prefix}-detail__gallery-img`;
+        img.loading = 'lazy';
+        item1.appendChild(img);
+        gallery.appendChild(item1);
+    }
+
+    if (img2) {
+        const item2 = document.createElement('div');
+        item2.className = `${prefix}-detail__gallery-item ${img1 ? `${prefix}-detail__gallery-item--narrow` : `${prefix}-detail__gallery-item--wide`}`;
+        const img = document.createElement('img');
+        img.src = sanitizeImageUrl(img2);
+        img.alt = altTitle ? `${altTitle} - Gambar Pendukung 2` : 'Gambar Pendukung 2';
+        img.className = `${prefix}-detail__gallery-img`;
+        img.loading = 'lazy';
+        item2.appendChild(img);
+        gallery.appendChild(item2);
+    }
+
+    return gallery;
+}
+
+export function renderDetailContent(paragraphsEl, bodyEl, contentText, supp1 = null, supp2 = null, altTitle = '') {
     const target = paragraphsEl || bodyEl;
     if (!target) return;
 
@@ -217,26 +285,60 @@ export function renderDetailContent(paragraphsEl, bodyEl, contentText) {
         return;
     }
 
-    const blocks = textToRender
-        .split(/\r?\n\s*\r?\n/)
-        .map((b) => b.trim())
-        .filter((b) => b.length > 0);
+    const galleryEl = createGalleryElement('news', supp1, supp2, altTitle);
+    const markerRegex = /\[\[NEWS_IMAGES\]\]/i;
+    let galleryInserted = false;
 
+    const sections = textToRender.split(markerRegex);
     const fragment = document.createDocumentFragment();
-    blocks.forEach((block) => {
+
+    sections.forEach((section, sIndex) => {
+        const trimmedSection = section.trim();
+        if (trimmedSection) {
+            const blocks = trimmedSection
+                .split(/\r?\n\s*\r?\n/)
+                .map((b) => b.trim())
+                .filter((b) => b.length > 0);
+
+            blocks.forEach((block, bIndex) => {
+                const p = document.createElement('p');
+                p.className = 'news-detail__paragraph';
+
+                const lines = block.split(/\r?\n/);
+                lines.forEach((line, lineIndex) => {
+                    if (lineIndex > 0) {
+                        p.appendChild(document.createElement('br'));
+                    }
+                    p.appendChild(document.createTextNode(line));
+                });
+
+                fragment.appendChild(p);
+
+                if (!galleryInserted && galleryEl && sections.length === 1 && bIndex === 0 && blocks.length > 1) {
+                    fragment.appendChild(galleryEl);
+                    galleryInserted = true;
+                }
+            });
+        }
+
+        if (sIndex < sections.length - 1) {
+            if (galleryEl && !galleryInserted) {
+                fragment.appendChild(galleryEl);
+                galleryInserted = true;
+            }
+        }
+    });
+
+    if (galleryEl && !galleryInserted) {
+        fragment.appendChild(galleryEl);
+    }
+
+    if (fragment.childNodes.length === 0) {
         const p = document.createElement('p');
         p.className = 'news-detail__paragraph';
-
-        const lines = block.split(/\r?\n/);
-        lines.forEach((line, lineIndex) => {
-            if (lineIndex > 0) {
-                p.appendChild(document.createElement('br'));
-            }
-            p.appendChild(document.createTextNode(line));
-        });
-
+        p.textContent = 'Belum ada isi artikel untuk berita ini.';
         fragment.appendChild(p);
-    });
+    }
 
     target.appendChild(fragment);
 }
@@ -386,7 +488,12 @@ export async function loadNewsDetail(detailContainer) {
             }
 
             if (imageEl) {
-                imageEl.src = sanitizeImageUrl(item.image, '/images/news/detail-featured.jpg');
+                const detailCandidate = isDocumentFile(item.image) ? '/images/news/detail-featured.jpg' : item.image;
+                imageEl.onerror = () => {
+                    imageEl.onerror = null;
+                    imageEl.src = '/images/news/detail-featured.jpg';
+                };
+                imageEl.src = sanitizeImageUrl(detailCandidate, '/images/news/detail-featured.jpg');
                 imageEl.alt = item.title || 'Detail Berita';
             }
 
@@ -399,9 +506,19 @@ export async function loadNewsDetail(detailContainer) {
                 cardEl.dataset.itemContent = item.content || item.excerpt || '';
                 cardEl.dataset.itemDescription = item.content || item.excerpt || '';
                 cardEl.dataset.itemExcerpt = item.excerpt || '';
+                cardEl.dataset.itemImage = item.rawImage ?? item.raw?.gambar_pendukung ?? item.image ?? '';
+                cardEl.dataset.itemSupportingImage1 = item.supportingImage1 || '';
+                cardEl.dataset.itemSupportingImage2 = item.supportingImage2 || '';
             }
 
-            renderDetailContent(paragraphsEl, bodyEl, item.content || item.excerpt);
+            renderDetailContent(
+                paragraphsEl,
+                bodyEl,
+                item.content || item.excerpt,
+                item.supportingImage1,
+                item.supportingImage2,
+                item.title
+            );
 
             showState('content');
         } catch (error) {
@@ -439,6 +556,7 @@ export function initNewsPage() {
 
 export default {
     NEUTRAL_AUTHOR,
+    isDocumentFile,
     sanitizeImageUrl,
     escapeHtml,
     resolveNewsAuthor,

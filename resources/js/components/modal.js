@@ -288,6 +288,98 @@ export function clearModalErrors(modal) {
         input.setAttribute('aria-invalid', 'false');
         input.removeAttribute('aria-describedby');
     });
+    clearGalleryNotices(modal);
+}
+
+export const GALLERY_MARKERS = {
+    research: '[[RESEARCH_IMAGES]]',
+    news: '[[NEWS_IMAGES]]',
+    achievement: '[[ACHIEVEMENT_IMAGES]]',
+};
+
+export function clearGalleryNotices(modal) {
+    if (!modal) return;
+    modal.querySelectorAll('[data-gallery-notice]').forEach((noticeEl) => {
+        noticeEl.hidden = true;
+        noticeEl.setAttribute('hidden', '');
+        noticeEl.textContent = '';
+        noticeEl.classList.remove('form-gallery-notice--info');
+    });
+}
+
+export function showGalleryNotice(modal, message, isInfo = false) {
+    if (!modal || !message) return;
+    const noticeEl = modal.querySelector('[data-gallery-notice]');
+    if (!noticeEl) return;
+    noticeEl.textContent = message;
+    noticeEl.classList.toggle('form-gallery-notice--info', Boolean(isInfo));
+    noticeEl.hidden = false;
+    noticeEl.removeAttribute('hidden');
+}
+
+export function hasSupportingImagesInModal(modal) {
+    if (!modal) return false;
+    return ['supporting_image_1', 'supporting_image_2'].some((name) => {
+        const input = modal.querySelector(`input[name="${name}"]`);
+        if (input?.files?.length > 0) return true;
+        const preview = input?.closest('.form-group')?.querySelector('[data-image-preview]');
+        return Boolean(preview?.dataset?.existingUrl);
+    });
+}
+
+export function insertGalleryMarker(textarea, marker) {
+    if (!textarea || !marker) {
+        return { inserted: false, reason: 'invalid' };
+    }
+
+    const currentValue = typeof textarea.value === 'string' ? textarea.value : '';
+    const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(escapedMarker, 'i').test(currentValue)) {
+        textarea.focus?.();
+        return { inserted: false, reason: 'duplicate', value: currentValue };
+    }
+
+    const start = typeof textarea.selectionStart === 'number' ? textarea.selectionStart : currentValue.length;
+    const end = typeof textarea.selectionEnd === 'number' ? textarea.selectionEnd : start;
+    const before = currentValue.slice(0, start);
+    const after = currentValue.slice(end);
+    const prefix = before.length > 0 && !/\s$/.test(before) ? ' ' : '';
+    const suffix = after.length > 0 && !/^\s/.test(after) ? ' ' : '';
+
+    textarea.value = `${before}${prefix}${marker}${suffix}${after}`;
+    const caretPos = start + prefix.length + marker.length;
+    textarea.focus?.();
+    if (typeof textarea.setSelectionRange === 'function') {
+        textarea.setSelectionRange(caretPos, caretPos);
+    }
+    if (typeof textarea.dispatchEvent === 'function' && typeof Event !== 'undefined') {
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    return { inserted: true, reason: 'inserted', value: textarea.value, caretPos };
+}
+
+export function handleInsertGalleryClick(button) {
+    if (!button) return { inserted: false, reason: 'invalid' };
+    const modal = button.closest?.('[data-modal]');
+    const marker = button.dataset?.insertGallery;
+    const targetId = button.dataset?.targetTextarea;
+    const textarea = (modal && targetId ? modal.querySelector(`#${targetId}`) : null) ||
+        modal?.querySelector('textarea');
+
+    const result = insertGalleryMarker(textarea, marker);
+    if (result.reason === 'duplicate') {
+        showGalleryNotice(modal, `Penanda ${marker} sudah ada di dalam teks.`, true);
+    } else if (result.inserted && !hasSupportingImagesInModal(modal)) {
+        showGalleryNotice(
+            modal,
+            `Penanda ${marker} disisipkan. Pilih minimal satu gambar pendukung agar galeri tampil pada halaman detail.`,
+            false
+        );
+    } else {
+        clearGalleryNotices(modal);
+    }
+    return result;
 }
 
 export function showModalGeneralError(modal, modalId, message) {
@@ -309,12 +401,17 @@ export const CMS_FIELD_MAPPINGS = {
         deskripsi_singkat: 'description',
         tanggal_mulai: 'date',
         status_proyek: 'status',
+        dokumentasi_visual_utama: 'image',
+        gambar_pendukung_1: 'supporting_image_1',
+        gambar_pendukung_2: 'supporting_image_2',
     },
     news: {
         judul_berita: 'title',
         isi_artikel_ringkas: 'content',
         tanggal_rilis: 'date',
         gambar_pendukung: 'image',
+        gambar_pendukung_1: 'supporting_image_1',
+        gambar_pendukung_2: 'supporting_image_2',
     },
     publication: {
         judul_karya_hibah: 'title',
@@ -328,6 +425,9 @@ export const CMS_FIELD_MAPPINGS = {
         tahun_diperoleh: 'date',
         deskripsi: 'content',
         dokumentasi_bukti: 'image',
+        gambar_utama: 'image',
+        gambar_pendukung_1: 'supporting_image_1',
+        gambar_pendukung_2: 'supporting_image_2',
     },
 };
 
@@ -340,22 +440,38 @@ export function buildResearchPayload(form, isEdit = false) {
     const date = form?.querySelector('[name="date"]')?.value?.trim() || '';
     const status = form?.querySelector('[name="status"]')?.value?.trim() || 'Sedang Berjalan';
 
-    const payload = {
-        judul_penelitian_simulasi: title,
-        deskripsi_singkat: description,
-        tanggal_mulai: date,
-        status_proyek: status,
-    };
+    const formData = new FormData();
+    formData.append('judul_penelitian_simulasi', title);
+    formData.append('deskripsi_singkat', description);
+    formData.append('tanggal_mulai', date);
+    formData.append('status_proyek', status);
 
     if (!isEdit) {
-        payload.tanggal_selesai = null;
+        formData.append('tanggal_selesai', '');
+    } else {
+        formData.append('_method', 'PUT');
     }
 
     if (adminId !== undefined && adminId !== null && adminId !== '') {
-        payload.admin_id = Number(adminId);
+        formData.append('admin_id', String(adminId));
     }
 
-    return payload;
+    const imageFile = form?.querySelector('[name="image"]')?.files?.[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
+
+    const supp1File = form?.querySelector('[name="supporting_image_1"]')?.files?.[0];
+    if (supp1File) {
+        formData.append('supporting_image_1', supp1File);
+    }
+
+    const supp2File = form?.querySelector('[name="supporting_image_2"]')?.files?.[0];
+    if (supp2File) {
+        formData.append('supporting_image_2', supp2File);
+    }
+
+    return formData;
 }
 
 export function buildNewsPayload(form, isEdit = false) {
@@ -364,40 +480,41 @@ export function buildNewsPayload(form, isEdit = false) {
 
     const title = form?.querySelector('[name="title"]')?.value?.trim() || '';
     const content = form?.querySelector('[name="content"]')?.value?.trim() || '';
-    const rawDate = form?.querySelector('[name="date"]')?.value?.trim();
-    const date = rawDate ? rawDate : null;
+    const rawDate = form?.querySelector('[name="date"]')?.value?.trim() || '';
 
-    const modal = form?.closest ? form.closest('[data-modal]') : null;
-    const imageInput = form?.querySelector ? form.querySelector('[name="image"]') : null;
-
-    let customImageString = null;
-    if (imageInput && imageInput.type !== 'file' && typeof imageInput.value === 'string' && imageInput.value.trim()) {
-        customImageString = imageInput.value.trim();
+    const formData = new FormData();
+    formData.append('judul_berita', title);
+    formData.append('isi_artikel_ringkas', content);
+    if (rawDate) {
+        formData.append('tanggal_rilis', rawDate);
     }
 
-    const payload = {
-        judul_berita: title,
-        isi_artikel_ringkas: content,
-        tanggal_rilis: date,
-    };
-
     if (!isEdit) {
-        payload.topik_utama = null;
-        payload.gambar_pendukung = customImageString || null;
+        formData.append('topik_utama', '');
     } else {
-        const existingImage = modal?.dataset?.editingImage?.trim();
-        if (customImageString) {
-            payload.gambar_pendukung = customImageString;
-        } else if (existingImage) {
-            payload.gambar_pendukung = existingImage;
-        }
+        formData.append('_method', 'PUT');
     }
 
     if (adminId !== undefined && adminId !== null && adminId !== '') {
-        payload.admin_id = Number(adminId);
+        formData.append('admin_id', String(adminId));
     }
 
-    return payload;
+    const imageFile = form?.querySelector('[name="image"]')?.files?.[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
+
+    const supp1File = form?.querySelector('[name="supporting_image_1"]')?.files?.[0];
+    if (supp1File) {
+        formData.append('supporting_image_1', supp1File);
+    }
+
+    const supp2File = form?.querySelector('[name="supporting_image_2"]')?.files?.[0];
+    if (supp2File) {
+        formData.append('supporting_image_2', supp2File);
+    }
+
+    return formData;
 }
 
 export function buildPublicationPayload(form, isEdit = false) {
@@ -446,41 +563,38 @@ export function buildAchievementPayload(form, isEdit = false) {
         }
     }
 
-    const content = form?.querySelector('[name="content"]')?.value?.trim() || null;
+    const content = form?.querySelector('[name="content"]')?.value?.trim() || '';
 
-    const modal = form?.closest ? form.closest('[data-modal]') : null;
-    const imageInput = form?.querySelector ? form.querySelector('[name="image"]') : null;
-
-    let customImageString = null;
-    if (imageInput && imageInput.type !== 'file' && typeof imageInput.value === 'string' && imageInput.value.trim()) {
-        customImageString = imageInput.value.trim();
+    const formData = new FormData();
+    formData.append('nama_prestasi', title);
+    formData.append('deskripsi', content);
+    if (parsedYear !== null) {
+        formData.append('tahun_diperoleh', String(parsedYear));
     }
-
-    const payload = {
-        nama_prestasi: title,
-        deskripsi: content,
-        tahun_diperoleh: parsedYear,
-    };
-
     if (alumniId !== null) {
-        payload.anggota_alumni_id = alumniId;
+        formData.append('anggota_alumni_id', String(alumniId));
     }
 
-    if (!isEdit) {
-        payload.penyelenggara = null;
-        payload.tingkat = null;
-        payload.proyek_id = null;
-        payload.dokumentasi_bukti = customImageString || null;
-    } else {
-        const existingImage = modal?.dataset?.editingImage?.trim();
-        if (customImageString) {
-            payload.dokumentasi_bukti = customImageString;
-        } else if (existingImage) {
-            payload.dokumentasi_bukti = existingImage;
-        }
+    if (isEdit) {
+        formData.append('_method', 'PUT');
     }
 
-    return payload;
+    const imageFile = form?.querySelector('[name="image"]')?.files?.[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
+
+    const supp1File = form?.querySelector('[name="supporting_image_1"]')?.files?.[0];
+    if (supp1File) {
+        formData.append('supporting_image_1', supp1File);
+    }
+
+    const supp2File = form?.querySelector('[name="supporting_image_2"]')?.files?.[0];
+    if (supp2File) {
+        formData.append('supporting_image_2', supp2File);
+    }
+
+    return formData;
 }
 
 export function handleCmsValidationErrors(form, modal, modalId, resourceType, errors) {
@@ -522,8 +636,202 @@ export function handleCmsValidationErrors(form, modal, modalId, resourceType, er
     }
 }
 
+function revokePreviewObjectUrl(previewEl) {
+    const existingObjUrl = previewEl?.dataset?.objectUrl;
+    if (existingObjUrl && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        try {
+            URL.revokeObjectURL(existingObjUrl);
+        } catch (e) {}
+    }
+    if (previewEl?.dataset) {
+        delete previewEl.dataset.objectUrl;
+    }
+}
+
+function setClearButtonVisible(previewEl, visible) {
+    const clearBtn = previewEl?.querySelector?.('[data-clear-file]');
+    if (!clearBtn) return;
+    clearBtn.hidden = !visible;
+    if (visible) {
+        clearBtn.removeAttribute('hidden');
+    } else {
+        clearBtn.setAttribute('hidden', '');
+    }
+}
+
+export function setPreviewImage(previewEl, url, filename = '', caption = '', options = {}) {
+    if (!previewEl) return;
+    revokePreviewObjectUrl(previewEl);
+
+    const img = previewEl.querySelector('[data-preview-img]');
+    const nameEl = previewEl.querySelector('[data-preview-name]');
+    const capEl = previewEl.querySelector('[data-preview-caption]');
+
+    if (!url) {
+        previewEl.style.display = 'none';
+        if (img) img.removeAttribute('src');
+        if (nameEl) nameEl.textContent = '';
+        if (capEl) capEl.textContent = '';
+        setClearButtonVisible(previewEl, false);
+        if (options.clearExisting !== false && previewEl.dataset) {
+            delete previewEl.dataset.existingUrl;
+            delete previewEl.dataset.existingFilename;
+            delete previewEl.dataset.existingCaption;
+        }
+        return;
+    }
+
+    const isBlobUrl = typeof url === 'string' && url.startsWith('blob:');
+    const isNewFile = Boolean(options.isNewFile ?? isBlobUrl);
+    const resolvedName = filename || url.split('/').pop().split('\\').pop() || 'Gambar';
+    const resolvedCaption = caption || 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)';
+
+    if (img) img.src = url;
+    if (nameEl) nameEl.textContent = resolvedName;
+    if (capEl) capEl.textContent = resolvedCaption;
+    previewEl.style.display = 'flex';
+
+    if (isNewFile) {
+        if (isBlobUrl && previewEl.dataset) {
+            previewEl.dataset.objectUrl = url;
+        }
+        setClearButtonVisible(previewEl, true);
+    } else {
+        if (previewEl.dataset) {
+            previewEl.dataset.existingUrl = url;
+            previewEl.dataset.existingFilename = resolvedName;
+            previewEl.dataset.existingCaption = resolvedCaption;
+        }
+        setClearButtonVisible(previewEl, false);
+    }
+}
+
+export function clearFileSelection(triggerEl) {
+    const group = triggerEl?.closest?.('.form-group');
+    if (!group) return;
+
+    const fileInput = group.querySelector('[data-file-input]');
+    const textEl = group.querySelector('[data-file-text]');
+    const previewEl = group.querySelector('[data-image-preview]');
+    const modal = group.closest?.('[data-modal]');
+    const isEdit = Boolean(modal?.id?.startsWith('edit-'));
+
+    revokePreviewObjectUrl(previewEl);
+
+    if (fileInput) {
+        fileInput.value = '';
+        const modalId = modal?.id || '';
+        clearFieldError(fileInput, `${modalId}-${fileInput.name}-error`);
+    }
+
+    const existingUrl = previewEl?.dataset?.existingUrl || '';
+    if (isEdit && existingUrl) {
+        if (textEl) {
+            textEl.textContent = 'Pilih File (Biarkan kosong jika tidak diganti)';
+            textEl.style.color = 'var(--color-primary-300)';
+        }
+        setPreviewImage(
+            previewEl,
+            existingUrl,
+            previewEl.dataset.existingFilename || '',
+            previewEl.dataset.existingCaption || '',
+            { isEditExisting: true, clearExisting: false }
+        );
+    } else {
+        if (textEl) {
+            textEl.textContent = isEdit
+                ? 'Pilih File (Biarkan kosong jika tidak diganti)'
+                : 'Pilih File';
+            textEl.style.color = 'var(--color-primary-300)';
+        }
+        setPreviewImage(previewEl, '');
+    }
+}
+
+export function handleFileInputChange(fileInput) {
+    if (!fileInput) return;
+    const group = fileInput.closest?.('.form-group');
+    const textEl = fileInput.closest?.('.form-file-group')?.querySelector('[data-file-text]');
+    const previewEl = group?.querySelector('[data-image-preview]');
+    const modal = fileInput.closest?.('[data-modal]');
+    const isEdit = Boolean(modal?.id?.startsWith('edit-'));
+    const modalId = modal?.id || '';
+    const errorContainerId = `${modalId}-${fileInput.name}-error`;
+
+    clearFieldError(fileInput, errorContainerId);
+    revokePreviewObjectUrl(previewEl);
+
+    if (fileInput.files && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const validExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+        const ext = file.name.split('.').pop().toLowerCase();
+        const maxBytes = 2 * 1024 * 1024;
+
+        if (!validExtensions.includes(ext)) {
+            showFieldError(fileInput, errorContainerId, 'Format gambar tidak didukung. Gunakan JPG, JPEG, PNG, atau WEBP.');
+            fileInput.value = '';
+            clearFileSelection(fileInput);
+            showFieldError(fileInput, errorContainerId, 'Format gambar tidak didukung. Gunakan JPG, JPEG, PNG, atau WEBP.');
+            return;
+        }
+
+        if (file.size > maxBytes) {
+            const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+            const msg = `Ukuran file melebihi batas 2MB (${sizeMb} MB). Silakan pilih file yang lebih kecil.`;
+            fileInput.value = '';
+            clearFileSelection(fileInput);
+            showFieldError(fileInput, errorContainerId, msg);
+            return;
+        }
+
+        if (textEl) {
+            textEl.textContent = file.name;
+            textEl.style.color = 'var(--color-primary-700)';
+        }
+
+        if (previewEl) {
+            const objectUrl = (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function')
+                ? URL.createObjectURL(file)
+                : file.name;
+            const sizeKb = Math.max(1, Math.round(file.size / 1024));
+            setPreviewImage(previewEl, objectUrl, file.name, `File baru (${sizeKb} KB)`, {
+                isNewFile: true,
+                clearExisting: false,
+            });
+        }
+
+        if (fileInput.name === 'supporting_image_1' || fileInput.name === 'supporting_image_2') {
+            clearGalleryNotices(modal);
+        }
+    } else {
+        clearFileSelection(fileInput);
+    }
+}
+
+export function validateMainImageSelection(form, modalId, resourceType, isEdit) {
+    if (isEdit || !['research', 'news', 'achievement'].includes(resourceType)) {
+        return true;
+    }
+    const imageInput = form?.querySelector('input[name="image"]');
+    if (!imageInput) return true;
+    if (!imageInput.files || imageInput.files.length === 0) {
+        showFieldError(imageInput, `${modalId}-image-error`, 'Gambar utama wajib diisi.');
+        imageInput.focus?.();
+        return false;
+    }
+    return true;
+}
+
 function resetModalFileInputs(modal, isEdit = false) {
     if (!modal) return;
+    modal.querySelectorAll('[data-image-preview]').forEach((previewEl) => {
+        revokePreviewObjectUrl(previewEl);
+        setClearButtonVisible(previewEl, false);
+        if (!isEdit) {
+            setPreviewImage(previewEl, '');
+        }
+    });
+
     const fileInputs = modal.querySelectorAll('input[type="file"]');
     fileInputs.forEach((fi) => {
         fi.value = '';
@@ -624,6 +932,7 @@ export function closeModal(modal) {
     modal.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
 
+    resetModalFileInputs(modal, false);
     clearModalErrors(modal);
 }
 
@@ -679,6 +988,9 @@ export function populateEditModal(modalId, item, editBtn) {
 
         resetModalFileInputs(modal, true);
 
+        const mainPreview = modal.querySelector('#edit-research-modal-image-preview');
+        setPreviewImage(mainPreview, data.image, '', 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)', { isEditExisting: true });
+
         const supp1Input = modal.querySelector('input[name="supporting_image_1"]');
         const supp1Text = supp1Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
         if (supp1Text) {
@@ -686,6 +998,8 @@ export function populateEditModal(modalId, item, editBtn) {
                 ? 'Pilih File (Biarkan kosong jika tidak diganti)'
                 : 'Pilih File';
         }
+        const supp1Preview = modal.querySelector('#edit-research-modal-supporting-image-1-preview');
+        setPreviewImage(supp1Preview, data.supportingImage1, '', 'Gambar pendukung 1 saat ini', { isEditExisting: true });
 
         const supp2Input = modal.querySelector('input[name="supporting_image_2"]');
         const supp2Text = supp2Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
@@ -694,6 +1008,8 @@ export function populateEditModal(modalId, item, editBtn) {
                 ? 'Pilih File (Biarkan kosong jika tidak diganti)'
                 : 'Pilih File';
         }
+        const supp2Preview = modal.querySelector('#edit-research-modal-supporting-image-2-preview');
+        setPreviewImage(supp2Preview, data.supportingImage2, '', 'Gambar pendukung 2 saat ini', { isEditExisting: true });
 
         clearModalErrors(modal);
     }
@@ -738,6 +1054,9 @@ export function populateEditModal(modalId, item, editBtn) {
 
         resetModalFileInputs(modal, true);
 
+        const mainPreview = modal.querySelector('#edit-news-modal-image-preview');
+        setPreviewImage(mainPreview, data.image, '', 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)', { isEditExisting: true });
+
         const supp1Input = modal.querySelector('input[name="supporting_image_1"]');
         const supp1Text = supp1Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
         if (supp1Text) {
@@ -745,6 +1064,8 @@ export function populateEditModal(modalId, item, editBtn) {
                 ? 'Pilih File (Biarkan kosong jika tidak diganti)'
                 : 'Pilih File';
         }
+        const supp1Preview = modal.querySelector('#edit-news-modal-supporting-image-1-preview');
+        setPreviewImage(supp1Preview, data.supportingImage1, '', 'Gambar pendukung 1 saat ini', { isEditExisting: true });
 
         const supp2Input = modal.querySelector('input[name="supporting_image_2"]');
         const supp2Text = supp2Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
@@ -753,6 +1074,8 @@ export function populateEditModal(modalId, item, editBtn) {
                 ? 'Pilih File (Biarkan kosong jika tidak diganti)'
                 : 'Pilih File';
         }
+        const supp2Preview = modal.querySelector('#edit-news-modal-supporting-image-2-preview');
+        setPreviewImage(supp2Preview, data.supportingImage2, '', 'Gambar pendukung 2 saat ini', { isEditExisting: true });
 
         clearModalErrors(modal);
     }
@@ -786,6 +1109,9 @@ export function populateEditModal(modalId, item, editBtn) {
 
         resetModalFileInputs(modal, true);
 
+        const mainPreview = modal.querySelector('#edit-achievement-modal-image-preview');
+        setPreviewImage(mainPreview, data.image, '', 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)', { isEditExisting: true });
+
         const supp1Input = modal.querySelector('input[name="supporting_image_1"]');
         const supp1Text = supp1Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
         if (supp1Text) {
@@ -793,6 +1119,8 @@ export function populateEditModal(modalId, item, editBtn) {
                 ? 'Pilih File (Biarkan kosong jika tidak diganti)'
                 : 'Pilih File';
         }
+        const supp1Preview = modal.querySelector('#edit-achievement-modal-supporting-image-1-preview');
+        setPreviewImage(supp1Preview, data.supportingImage1, '', 'Gambar pendukung 1 saat ini', { isEditExisting: true });
 
         const supp2Input = modal.querySelector('input[name="supporting_image_2"]');
         const supp2Text = supp2Input?.closest('.form-file-group')?.querySelector('[data-file-text]');
@@ -801,6 +1129,8 @@ export function populateEditModal(modalId, item, editBtn) {
                 ? 'Pilih File (Biarkan kosong jika tidak diganti)'
                 : 'Pilih File';
         }
+        const supp2Preview = modal.querySelector('#edit-achievement-modal-supporting-image-2-preview');
+        setPreviewImage(supp2Preview, data.supportingImage2, '', 'Gambar pendukung 2 saat ini', { isEditExisting: true });
 
         clearModalErrors(modal);
     }
@@ -1176,6 +1506,20 @@ export function initModal() {
             return;
         }
 
+        const clearFileBtn = e.target.closest('[data-clear-file]');
+        if (clearFileBtn) {
+            e.preventDefault();
+            clearFileSelection(clearFileBtn);
+            return;
+        }
+
+        const insertGalleryBtn = e.target.closest('[data-insert-gallery]');
+        if (insertGalleryBtn) {
+            e.preventDefault();
+            handleInsertGalleryClick(insertGalleryBtn);
+            return;
+        }
+
         // Generic open modal button
         const openBtn = e.target.closest('[data-open-modal]');
         if (openBtn) {
@@ -1342,25 +1686,7 @@ export function initModal() {
     document.addEventListener('change', (e) => {
         const fileInput = e.target.closest('[data-file-input]');
         if (!fileInput) return;
-        const group = fileInput.closest('.form-file-group');
-        const textEl = group?.querySelector('[data-file-text]');
-        if (textEl) {
-            if (fileInput.files && fileInput.files.length > 0) {
-                if (fileInput.files.length === 1) {
-                    textEl.textContent = `${fileInput.files[0].name} (Upload file belum didukung REST API)`;
-                } else {
-                    textEl.textContent = `${fileInput.files.length} file dipilih (Upload file belum didukung REST API)`;
-                }
-                textEl.style.color = 'var(--color-primary-700)';
-            } else {
-                const modal = fileInput.closest('[data-modal]');
-                const isEdit = Boolean(modal?.id.startsWith('edit-'));
-                textEl.textContent = isEdit
-                    ? 'Pilih File (Biarkan kosong jika tidak diganti)'
-                    : 'Pilih File';
-                textEl.style.color = 'var(--color-primary-300)';
-            }
-        }
+        handleFileInputChange(fileInput);
     });
 
     const validResources = ['research', 'news', 'publication', 'achievement'];
@@ -1383,6 +1709,9 @@ export function initModal() {
 
         const originalBtnText = submitBtn ? submitBtn.textContent : 'Simpan';
         const isEdit = modalId === `edit-${resourceType}-modal`;
+        if (!validateMainImageSelection(form, modalId, resourceType, isEdit)) {
+            return;
+        }
         const editingId = modal?.dataset.editingId ||
             form.querySelector(`input[name="${resourceType}_id"]`)?.value ||
             (activeEditingItem && activeEditingItem.dataset.itemType === resourceType ? activeEditingItem.dataset.itemId : null);
@@ -1410,7 +1739,8 @@ export function initModal() {
         }
 
         if (resourceType !== 'achievement') {
-            if (!payload.admin_id || isNaN(payload.admin_id)) {
+            const checkAdminId = payload instanceof FormData ? payload.get('admin_id') : payload?.admin_id;
+            if (!checkAdminId || isNaN(Number(checkAdminId))) {
                 showModalGeneralError(modal, modalId, 'Sesi admin tidak valid atau ID admin tidak ditemukan. Silakan masuk kembali.');
                 return;
             }

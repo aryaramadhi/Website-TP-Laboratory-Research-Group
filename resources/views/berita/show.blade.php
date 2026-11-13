@@ -60,8 +60,9 @@
             data-item-date="{{ $news?->release_date?->format('Y-m-d') ?? '' }}"
             data-item-content="{{ $news?->content ?? $itemExcerpt }}"
             data-item-description="{{ $news?->content ?? $itemExcerpt }}"
-            data-item-supporting-image-1=""
-            data-item-supporting-image-2=""
+            data-item-image="{{ $news?->gambar_pendukung ?? $news?->main_image ?? '' }}"
+            data-item-supporting-image-1="{{ $news?->gambar_pendukung_1 ?? '' }}"
+            data-item-supporting-image-2="{{ $news?->gambar_pendukung_2 ?? '' }}"
         >
             <div class="news-detail__featured">
                 <img
@@ -69,6 +70,7 @@
                     alt="{{ $itemTitle }}"
                     class="news-detail__featured-img"
                     data-news-detail-image
+                    onerror="this.onerror=null;this.src='{{ asset('images/news/detail-featured.jpg') }}';"
                 >
             </div>
 

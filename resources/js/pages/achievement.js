@@ -5,6 +5,14 @@ export const NEUTRAL_AUTHOR = 'TP Laboratory Research Group';
 export const DEFAULT_ACHIEVEMENT_IMAGE = '/images/home/achievement-1.jpg';
 export const DEFAULT_DETAIL_IMAGE = '/images/achievements/detail-featured.jpg';
 
+export function isDocumentFile(url) {
+    if (!url || typeof url !== 'string') {
+        return false;
+    }
+    const clean = url.split('?')[0].split('#')[0].trim().toLowerCase();
+    return clean.endsWith('.pdf') || clean.endsWith('.doc') || clean.endsWith('.docx');
+}
+
 export function sanitizeImageUrl(url, fallback = DEFAULT_ACHIEVEMENT_IMAGE) {
     if (!url || typeof url !== 'string') {
         return fallback;
@@ -123,6 +131,14 @@ export function resolveAchievementDate(raw) {
     return { badge, isoDate, displayDate };
 }
 
+export function stripGalleryMarkers(text) {
+    if (typeof text !== 'string') return '';
+    return text
+        .replace(/\s*\[\[(?:RESEARCH|NEWS|ACHIEVEMENT)_IMAGES\]\]\s*/gi, ' ')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+}
+
 export function mapAchievementItem(raw) {
     if (!raw || typeof raw !== 'object') {
         return null;
@@ -140,8 +156,29 @@ export function mapAchievementItem(raw) {
     const projectRelation = raw.proyekRiset || raw.proyek_riset;
     const projectTitle = projectRelation?.judul_penelitian_simulasi || '';
 
-    const rawImage = raw.dokumentasi_bukti ?? raw.image_url ?? raw.image ?? null;
-    const imageUrl = sanitizeImageUrl(rawImage, DEFAULT_ACHIEVEMENT_IMAGE);
+    const rawImage = raw.gambar_utama ?? raw.image_url ?? raw.image ?? null;
+    const rawProof = raw.dokumentasi_bukti ?? null;
+    const isDoc = isDocumentFile(rawProof);
+
+    let imageUrl = DEFAULT_ACHIEVEMENT_IMAGE;
+    if (rawImage) {
+        imageUrl = sanitizeImageUrl(rawImage, DEFAULT_ACHIEVEMENT_IMAGE);
+    } else if (rawProof && !isDoc) {
+        imageUrl = sanitizeImageUrl(rawProof, DEFAULT_ACHIEVEMENT_IMAGE);
+    }
+
+    const documentUrl = isDoc
+        ? sanitizeImageUrl(rawProof, '')
+        : null;
+
+    const documentName = (isDoc && typeof rawProof === 'string')
+        ? rawProof.split('/').pop().split('\\').pop()
+        : '';
+
+    const rawSupp1 = raw.supporting_image_1_url ?? raw.gambar_pendukung_1 ?? raw.supporting_image_1 ?? null;
+    const rawSupp2 = raw.supporting_image_2_url ?? raw.gambar_pendukung_2 ?? raw.supporting_image_2 ?? null;
+    const supportingImage1 = (rawSupp1 && typeof rawSupp1 === 'string' && rawSupp1.trim()) ? sanitizeImageUrl(rawSupp1, '') : null;
+    const supportingImage2 = (rawSupp2 && typeof rawSupp2 === 'string' && rawSupp2.trim()) ? sanitizeImageUrl(rawSupp2, '') : null;
 
     return {
         id,
@@ -154,6 +191,13 @@ export function mapAchievementItem(raw) {
         isoDate: dateInfo.isoDate,
         displayDate: dateInfo.displayDate,
         image: imageUrl,
+        rawImage,
+        rawProof,
+        supportingImage1,
+        supportingImage2,
+        documentUrl,
+        documentName,
+        isDocument: isDoc,
         author,
         authorId,
         project: projectTitle,
@@ -172,17 +216,25 @@ export function renderAchievementCard(item) {
     const safeYear = escapeHtml(item.year || item.badge || '');
     const safeBadge = escapeHtml(item.badge || '');
     const safeHref = escapeHtml(item.href || '#');
-    const safeImage = escapeHtml(sanitizeImageUrl(item.image, DEFAULT_ACHIEVEMENT_IMAGE));
+    const imageCandidate = isDocumentFile(item.image) ? DEFAULT_ACHIEVEMENT_IMAGE : item.image;
+    const safeImage = escapeHtml(sanitizeImageUrl(imageCandidate, DEFAULT_ACHIEVEMENT_IMAGE));
+    const rawCandidate = item.rawProof ?? item.raw?.dokumentasi_bukti ?? item.documentUrl ?? item.image ?? '';
+    const safeRawImage = (typeof rawCandidate === 'string' && /^(javascript|data|vbscript):/i.test(rawCandidate.trim()))
+        ? ''
+        : escapeHtml(rawCandidate);
+
+    const visibleDescription = stripGalleryMarkers(item.description);
+    const safeVisibleDescription = escapeHtml(visibleDescription);
 
     const hasMetaClass = item.badge ? 'achievement-card--has-meta' : '';
     const badgeHtml = item.badge
         ? `<div class="achievement-card__badge">${safeBadge}</div>`
         : '';
-    const dividerHtml = (!item.badge && !item.description)
+    const dividerHtml = (!item.badge && !visibleDescription)
         ? '<div class="achievement-card__divider" aria-hidden="true"></div>'
         : '';
-    const descHtml = item.description
-        ? `<p class="achievement-card__description">${safeDescription}</p>`
+    const descHtml = visibleDescription
+        ? `<p class="achievement-card__description">${safeVisibleDescription}</p>`
         : '';
 
     return `
@@ -196,12 +248,14 @@ export function renderAchievementCard(item) {
             data-item-date="${safeDate}"
             data-item-content="${safeDescription}"
             data-item-description="${safeDescription}"
-            data-item-supporting-image-1=""
-            data-item-supporting-image-2=""
+            data-item-image="${safeRawImage}"
+            data-item-document="${escapeHtml(item.documentUrl || '')}"
+            data-item-supporting-image-1="${escapeHtml(item.supportingImage1 || '')}"
+            data-item-supporting-image-2="${escapeHtml(item.supportingImage2 || '')}"
         >
             <div class="achievement-card__media">
                 <a href="${safeHref}" class="achievement-card__media-link">
-                    <img src="${safeImage}" alt="${safeTitle}" class="achievement-card__image">
+                    <img src="${safeImage}" alt="${safeTitle}" class="achievement-card__image" onerror="this.onerror=null;this.src='${DEFAULT_ACHIEVEMENT_IMAGE}';">
                 </a>
                 ${badgeHtml}
                 <button
@@ -230,6 +284,39 @@ export function renderAchievementCard(item) {
     `;
 }
 
+export function createGalleryElement(prefix, img1, img2, altTitle = '') {
+    if (!img1 && !img2) return null;
+
+    const gallery = document.createElement('div');
+    gallery.className = `${prefix}-detail__gallery`;
+
+    if (img1) {
+        const item1 = document.createElement('div');
+        item1.className = `${prefix}-detail__gallery-item ${img2 ? `${prefix}-detail__gallery-item--wide` : ''}`;
+        const img = document.createElement('img');
+        img.src = sanitizeImageUrl(img1);
+        img.alt = altTitle ? `${altTitle} - Gambar Pendukung 1` : 'Gambar Pendukung 1';
+        img.className = `${prefix}-detail__gallery-img`;
+        img.loading = 'lazy';
+        item1.appendChild(img);
+        gallery.appendChild(item1);
+    }
+
+    if (img2) {
+        const item2 = document.createElement('div');
+        item2.className = `${prefix}-detail__gallery-item ${img1 ? `${prefix}-detail__gallery-item--narrow` : `${prefix}-detail__gallery-item--wide`}`;
+        const img = document.createElement('img');
+        img.src = sanitizeImageUrl(img2);
+        img.alt = altTitle ? `${altTitle} - Gambar Pendukung 2` : 'Gambar Pendukung 2';
+        img.className = `${prefix}-detail__gallery-img`;
+        img.loading = 'lazy';
+        item2.appendChild(img);
+        gallery.appendChild(item2);
+    }
+
+    return gallery;
+}
+
 export function renderDetailContent(paragraphsEl, bodyEl, contentText, metadata = {}) {
     const target = paragraphsEl || bodyEl;
     if (!target) return;
@@ -250,28 +337,55 @@ export function renderDetailContent(paragraphsEl, bodyEl, contentText, metadata 
         return;
     }
 
+    const galleryEl = createGalleryElement('achievement', metadata.supportingImage1, metadata.supportingImage2, metadata.title || '');
+    const markerRegex = /\[\[ACHIEVEMENT_IMAGES\]\]/i;
+    let galleryInserted = false;
+
     const fragment = document.createDocumentFragment();
 
     if (textToRender) {
-        const blocks = textToRender
-            .split(/\r?\n\s*\r?\n/)
-            .map((b) => b.trim())
-            .filter((b) => b.length > 0);
+        const sections = textToRender.split(markerRegex);
 
-        blocks.forEach((block) => {
-            const p = document.createElement('p');
-            p.className = 'achievement-detail__paragraph';
+        sections.forEach((section, sIndex) => {
+            const trimmedSection = section.trim();
+            if (trimmedSection) {
+                const blocks = trimmedSection
+                    .split(/\r?\n\s*\r?\n/)
+                    .map((b) => b.trim())
+                    .filter((b) => b.length > 0);
 
-            const lines = block.split(/\r?\n/);
-            lines.forEach((line, lineIndex) => {
-                if (lineIndex > 0) {
-                    p.appendChild(document.createElement('br'));
+                blocks.forEach((block, bIndex) => {
+                    const p = document.createElement('p');
+                    p.className = 'achievement-detail__paragraph';
+
+                    const lines = block.split(/\r?\n/);
+                    lines.forEach((line, lineIndex) => {
+                        if (lineIndex > 0) {
+                            p.appendChild(document.createElement('br'));
+                        }
+                        p.appendChild(document.createTextNode(line));
+                    });
+
+                    fragment.appendChild(p);
+
+                    if (!galleryInserted && galleryEl && sections.length === 1 && bIndex === 0 && blocks.length > 1) {
+                        fragment.appendChild(galleryEl);
+                        galleryInserted = true;
+                    }
+                });
+            }
+
+            if (sIndex < sections.length - 1) {
+                if (galleryEl && !galleryInserted) {
+                    fragment.appendChild(galleryEl);
+                    galleryInserted = true;
                 }
-                p.appendChild(document.createTextNode(line));
-            });
-
-            fragment.appendChild(p);
+            }
         });
+    }
+
+    if (galleryEl && !galleryInserted) {
+        fragment.appendChild(galleryEl);
     }
 
     if (metadata.organizer || metadata.level || metadata.project) {
@@ -292,6 +406,25 @@ export function renderDetailContent(paragraphsEl, bodyEl, contentText, metadata 
         });
 
         fragment.appendChild(metaP);
+    }
+
+    if (metadata.documentUrl) {
+        const docP = document.createElement('p');
+        docP.className = 'achievement-detail__paragraph achievement-detail__document';
+
+        const strong = document.createElement('strong');
+        strong.textContent = 'Dokumen Bukti: ';
+        docP.appendChild(strong);
+
+        const a = document.createElement('a');
+        a.href = metadata.documentUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.className = 'achievement-detail__document-link';
+        a.textContent = metadata.documentName ? `Lihat ${metadata.documentName} (PDF)` : 'Lihat Dokumen Bukti (PDF)';
+        docP.appendChild(a);
+
+        fragment.appendChild(docP);
     }
 
     target.appendChild(fragment);
@@ -442,7 +575,12 @@ export async function loadAchievementDetail(detailContainer) {
             }
 
             if (imageEl) {
-                imageEl.src = sanitizeImageUrl(item.image, DEFAULT_DETAIL_IMAGE);
+                const detailImage = isDocumentFile(item.image) ? DEFAULT_DETAIL_IMAGE : item.image;
+                imageEl.onerror = () => {
+                    imageEl.onerror = null;
+                    imageEl.src = DEFAULT_DETAIL_IMAGE;
+                };
+                imageEl.src = sanitizeImageUrl(detailImage, DEFAULT_DETAIL_IMAGE);
                 imageEl.alt = item.title || 'Detail Prestasi';
             }
 
@@ -454,12 +592,24 @@ export async function loadAchievementDetail(detailContainer) {
                 cardEl.dataset.itemDate = item.isoDate || (item.year ? `${item.year}-01-01` : '');
                 cardEl.dataset.itemContent = item.description || '';
                 cardEl.dataset.itemDescription = item.description || '';
+                const rawProofStr = item.rawProof ?? item.raw?.dokumentasi_bukti ?? item.documentUrl ?? item.image ?? '';
+                cardEl.dataset.itemImage = (typeof rawProofStr === 'string' && /^(javascript|data|vbscript):/i.test(rawProofStr.trim())) ? '' : rawProofStr;
+                if (item.documentUrl) {
+                    cardEl.dataset.itemDocument = item.documentUrl;
+                }
+                cardEl.dataset.itemSupportingImage1 = item.supportingImage1 || '';
+                cardEl.dataset.itemSupportingImage2 = item.supportingImage2 || '';
             }
 
             renderDetailContent(paragraphsEl, bodyEl, item.description, {
+                title: item.title,
                 organizer: item.organizer,
                 level: item.level,
                 project: item.project,
+                documentUrl: item.documentUrl,
+                documentName: item.documentName,
+                supportingImage1: item.supportingImage1,
+                supportingImage2: item.supportingImage2,
             });
 
             showState('content');
@@ -500,6 +650,7 @@ export default {
     NEUTRAL_AUTHOR,
     DEFAULT_ACHIEVEMENT_IMAGE,
     DEFAULT_DETAIL_IMAGE,
+    isDocumentFile,
     sanitizeImageUrl,
     escapeHtml,
     resolveAchievementAuthor,

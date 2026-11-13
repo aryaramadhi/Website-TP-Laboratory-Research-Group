@@ -13,6 +13,12 @@ export async function createResearch(payload, options = {}) {
 }
 
 export async function updateResearch(id, payload, options = {}) {
+    if (typeof FormData !== 'undefined' && payload instanceof FormData) {
+        if (!payload.has('_method')) {
+            payload.append('_method', 'PUT');
+        }
+        return apiClient.post(`/proyek-riset/${id}`, payload, options);
+    }
     return apiClient.put(`/proyek-riset/${id}`, payload, options);
 }
 
