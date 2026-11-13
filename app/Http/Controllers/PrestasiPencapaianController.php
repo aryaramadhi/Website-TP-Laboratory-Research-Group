@@ -30,7 +30,7 @@ class PrestasiPencapaianController extends Controller
             'deskripsi'          => 'nullable|string',
             'image'              => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_utama'       => 'nullable',
-            'dokumentasi_bukti'  => 'nullable',
+            'dokumentasi_bukti'  => $this->dokumentasiBuktiValidationRule($request),
             'supporting_image_1' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_pendukung_1' => 'nullable',
             'supporting_image_2' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
@@ -107,7 +107,7 @@ class PrestasiPencapaianController extends Controller
             'deskripsi'          => 'nullable|string',
             'image'              => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_utama'       => 'nullable',
-            'dokumentasi_bukti'  => 'nullable',
+            'dokumentasi_bukti'  => $this->dokumentasiBuktiValidationRule($request),
             'supporting_image_1' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_pendukung_1' => 'nullable',
             'supporting_image_2' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
@@ -205,5 +205,32 @@ class PrestasiPencapaianController extends Controller
         $this->deleteStoredImages($pathsToDelete);
 
         return response()->json(['message' => 'Prestasi/Pencapaian berhasil dihapus']);
+    }
+
+    protected function dokumentasiBuktiValidationRule(Request $request): string|array
+    {
+        if ($request->hasFile('dokumentasi_bukti')) {
+            return 'nullable|file|mimes:pdf,jpeg,png,jpg,webp|max:2048';
+        }
+
+        return [
+            'nullable',
+            'string',
+            'max:255',
+            function (string $attribute, mixed $value, \Closure $fail): void {
+                if ($value === null || trim((string) $value) === '') {
+                    return;
+                }
+
+                $trimmed = trim((string) $value);
+                if (!$this->isValidPathString($trimmed) ||
+                    str_contains($trimmed, '..') ||
+                    str_contains($trimmed, '//') ||
+                    str_contains($trimmed, '\\') ||
+                    !preg_match('/\A\/?[a-zA-Z0-9_.\-\/]+\.(pdf|jpe?g|png|webp)\z/i', $trimmed)) {
+                    $fail('Format jalur dokumentasi bukti tidak valid.');
+                }
+            },
+        ];
     }
 }

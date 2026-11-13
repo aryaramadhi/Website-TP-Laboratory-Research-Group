@@ -76,16 +76,15 @@ export async function loadHomeResearch(container) {
                 return;
             }
 
-            const mappedItems = rawData
+            const items = rawData
                 .map(mapResearchItem)
-                .filter(Boolean);
+                .filter(Boolean)
+                .slice(0, MAX_HOME_ITEMS);
 
-            if (mappedItems.length === 0) {
+            if (items.length === 0) {
                 showState('empty');
                 return;
             }
-
-            const items = sortResearchItemsByLatest(mappedItems).slice(0, MAX_HOME_ITEMS);
 
             showState('none');
 

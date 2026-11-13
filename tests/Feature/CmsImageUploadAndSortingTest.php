@@ -304,6 +304,117 @@ class CmsImageUploadAndSortingTest extends TestCase
         $response2->assertJsonValidationErrors('image');
     }
 
+    public function test_achievement_proof_document_rejects_invalid_or_oversized_files_and_preserves_old_file(): void
+    {
+        $photoFile = UploadedFile::fake()->image('trophy.jpg');
+        $pdfFile = UploadedFile::fake()->create('lama.pdf', 500, 'application/pdf');
+
+        $createRes = $this->postJson('/api/prestasi-pencapaian', [
+            'nama_prestasi' => 'Juara 1 Simulasi Energi',
+            'tahun_diperoleh' => 2026,
+            'deskripsi' => 'Dokumen bukti awal valid.',
+            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
+            'image' => $photoFile,
+            'dokumentasi_bukti' => $pdfFile,
+        ]);
+
+        $createRes->assertStatus(201);
+        $prestasi = PrestasiPencapaian::findOrFail($createRes->json('data.prestasi_id'));
+        $origMainPath = $prestasi->gambar_utama;
+        $origProofPath = $prestasi->dokumentasi_bukti;
+
+        Storage::disk('public')->assertExists($origMainPath);
+        Storage::disk('public')->assertExists($origProofPath);
+
+        $dangerousFile = UploadedFile::fake()->create('exploit.php', 50, 'application/x-httpd-php');
+        $storeInvalidRes = $this->postJson('/api/prestasi-pencapaian', [
+            'nama_prestasi' => 'Percobaan Upload Berbahaya',
+            'tahun_diperoleh' => 2026,
+            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
+            'dokumentasi_bukti' => $dangerousFile,
+        ]);
+        $storeInvalidRes->assertStatus(422);
+        $storeInvalidRes->assertJsonValidationErrors('dokumentasi_bukti');
+
+        $oversizedPdf = UploadedFile::fake()->create('besar.pdf', 3000, 'application/pdf');
+        $updateOversizedRes = $this->postJson("/api/prestasi-pencapaian/{$prestasi->prestasi_id}", [
+            '_method' => 'PUT',
+            'nama_prestasi' => 'Gagal Ukuran PDF',
+            'dokumentasi_bukti' => $oversizedPdf,
+        ]);
+        $updateOversizedRes->assertStatus(422);
+        $updateOversizedRes->assertJsonValidationErrors('dokumentasi_bukti');
+
+        $exeFile = UploadedFile::fake()->create('script.exe', 100, 'application/octet-stream');
+        $updateDangerousRes = $this->postJson("/api/prestasi-pencapaian/{$prestasi->prestasi_id}", [
+            '_method' => 'PUT',
+            'nama_prestasi' => 'Gagal Ekstensi EXE',
+            'dokumentasi_bukti' => $exeFile,
+        ]);
+        $updateDangerousRes->assertStatus(422);
+        $updateDangerousRes->assertJsonValidationErrors('dokumentasi_bukti');
+
+        $prestasi->refresh();
+        $this->assertEquals($origProofPath, $prestasi->dokumentasi_bukti);
+        $this->assertEquals($origMainPath, $prestasi->gambar_utama);
+        Storage::disk('public')->assertExists($origProofPath);
+        Storage::disk('public')->assertExists($origMainPath);
+
+        $updateWithoutDocRes = $this->postJson("/api/prestasi-pencapaian/{$prestasi->prestasi_id}", [
+            '_method' => 'PUT',
+            'nama_prestasi' => 'Juara 1 Simulasi Energi Updated',
+        ]);
+        $updateWithoutDocRes->assertStatus(200);
+        $prestasi->refresh();
+        $this->assertEquals('Juara 1 Simulasi Energi Updated', $prestasi->nama_prestasi);
+        $this->assertEquals($origProofPath, $prestasi->dokumentasi_bukti);
+        $this->assertEquals($origMainPath, $prestasi->gambar_utama);
+        Storage::disk('public')->assertExists($origProofPath);
+        Storage::disk('public')->assertExists($origMainPath);
+    }
+
+    public function test_achievement_proof_document_accepts_legacy_string_path_and_rejects_unsafe_string(): void
+    {
+        $validRes = $this->postJson('/api/prestasi-pencapaian', [
+            'nama_prestasi' => 'Prestasi Path Legacy',
+            'tahun_diperoleh' => 2025,
+            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
+            'dokumentasi_bukti' => 'sertifikat_juara1.pdf',
+        ]);
+        $validRes->assertStatus(201);
+        $this->assertDatabaseHas('prestasi_pencapaian', [
+            'prestasi_id' => $validRes->json('data.prestasi_id'),
+            'dokumentasi_bukti' => 'sertifikat_juara1.pdf',
+        ]);
+
+        $validImageProofRes = $this->postJson('/api/prestasi-pencapaian', [
+            'nama_prestasi' => 'Prestasi Upload Gambar Bukti',
+            'tahun_diperoleh' => 2026,
+            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
+            'dokumentasi_bukti' => UploadedFile::fake()->image('bukti_legacy.png'),
+        ]);
+        $validImageProofRes->assertStatus(201);
+
+        $unsafeInputs = [
+            'malware.exe',
+            '../../etc/passwd.pdf',
+            '..\\secret.pdf',
+            'https://evil.com/fake.pdf',
+            'JavaScript:alert(1)/a.pdf',
+        ];
+
+        foreach ($unsafeInputs as $unsafeInput) {
+            $unsafeRes = $this->postJson('/api/prestasi-pencapaian', [
+                'nama_prestasi' => 'Prestasi Input Tidak Aman',
+                'tahun_diperoleh' => 2025,
+                'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
+                'dokumentasi_bukti' => $unsafeInput,
+            ]);
+            $unsafeRes->assertStatus(422);
+            $unsafeRes->assertJsonValidationErrors('dokumentasi_bukti');
+        }
+    }
+
     public function test_public_pages_regression(): void
     {
         $this->get('/')->assertStatus(200);
