@@ -110,11 +110,23 @@ class PrestasiPencapaianController extends Controller
             'dokumentasi_bukti'  => $this->dokumentasiBuktiValidationRule($request),
             'supporting_image_1' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_pendukung_1' => 'nullable',
-            'supporting_image_2' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-            'gambar_pendukung_2' => 'nullable',
-            'anggota_alumni_id'  => 'sometimes|required|exists:anggota_alumni,anggota_alumni_id',
-            'proyek_id'          => 'nullable|exists:proyek_riset,proyek_id',
+            'supporting_image_2'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'gambar_pendukung_2'        => 'nullable',
+            'remove_image'              => 'nullable|in:0,1,true,false',
+            'remove_supporting_image_1' => 'nullable|in:0,1,true,false',
+            'remove_supporting_image_2' => 'nullable|in:0,1,true,false',
+            'anggota_alumni_id'         => 'sometimes|required|exists:anggota_alumni,anggota_alumni_id',
+            'proyek_id'                 => 'nullable|exists:proyek_riset,proyek_id',
         ]);
+
+        $mainFile = $request->file('image') ?? $request->file('gambar_utama');
+        $hasMainPathInput = $request->filled('gambar_utama')
+            && $this->isValidPathString($request->input('gambar_utama'));
+        if ($request->boolean('remove_image') && !$mainFile && !$hasMainPathInput) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'image' => ['Gambar utama wajib diisi dan tidak dapat dihapus tanpa gambar pengganti.'],
+            ]);
+        }
 
         $data = [];
         foreach (['nama_prestasi', 'penyelenggara', 'tingkat', 'tahun_diperoleh', 'deskripsi', 'anggota_alumni_id', 'proyek_id'] as $field) {
@@ -165,6 +177,11 @@ class PrestasiPencapaianController extends Controller
             }
         } elseif ($request->filled('gambar_pendukung_1') && $this->isValidPathString($request->input('gambar_pendukung_1'))) {
             $data['gambar_pendukung_1'] = $request->input('gambar_pendukung_1');
+        } elseif ($request->boolean('remove_supporting_image_1')) {
+            if ($prestasi->gambar_pendukung_1) {
+                $pathsToDelete[] = $prestasi->gambar_pendukung_1;
+            }
+            $data['gambar_pendukung_1'] = null;
         }
 
         $supp2File = $request->file('supporting_image_2') ?? $request->file('gambar_pendukung_2');
@@ -179,6 +196,11 @@ class PrestasiPencapaianController extends Controller
             }
         } elseif ($request->filled('gambar_pendukung_2') && $this->isValidPathString($request->input('gambar_pendukung_2'))) {
             $data['gambar_pendukung_2'] = $request->input('gambar_pendukung_2');
+        } elseif ($request->boolean('remove_supporting_image_2')) {
+            if ($prestasi->gambar_pendukung_2) {
+                $pathsToDelete[] = $prestasi->gambar_pendukung_2;
+            }
+            $data['gambar_pendukung_2'] = null;
         }
 
         $prestasi->update($data);

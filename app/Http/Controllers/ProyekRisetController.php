@@ -116,7 +116,19 @@ class ProyekRisetController extends Controller
             'gambar_pendukung_1'       => 'nullable',
             'supporting_image_2'       => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_pendukung_2'       => 'nullable',
+            'remove_image'             => 'nullable|in:0,1,true,false',
+            'remove_supporting_image_1' => 'nullable|in:0,1,true,false',
+            'remove_supporting_image_2' => 'nullable|in:0,1,true,false',
         ]);
+
+        $mainFile = $request->file('image') ?? $request->file('dokumentasi_visual_utama');
+        $hasMainPathInput = $request->filled('dokumentasi_visual_utama')
+            && $this->isValidPathString($request->input('dokumentasi_visual_utama'));
+        if ($request->boolean('remove_image') && !$mainFile && !$hasMainPathInput) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'image' => ['Gambar utama wajib diisi dan tidak dapat dihapus tanpa gambar pengganti.'],
+            ]);
+        }
 
         $data = [];
         foreach (['judul_penelitian_simulasi', 'deskripsi_singkat', 'tanggal_mulai', 'status_proyek', 'admin_id'] as $field) {
@@ -156,6 +168,11 @@ class ProyekRisetController extends Controller
             }
         } elseif ($request->filled('gambar_pendukung_1') && $this->isValidPathString($request->input('gambar_pendukung_1'))) {
             $data['gambar_pendukung_1'] = $request->input('gambar_pendukung_1');
+        } elseif ($request->boolean('remove_supporting_image_1')) {
+            if ($proyek->gambar_pendukung_1) {
+                $pathsToDelete[] = $proyek->gambar_pendukung_1;
+            }
+            $data['gambar_pendukung_1'] = null;
         }
 
         $supp2File = $request->file('supporting_image_2') ?? $request->file('gambar_pendukung_2');
@@ -170,6 +187,11 @@ class ProyekRisetController extends Controller
             }
         } elseif ($request->filled('gambar_pendukung_2') && $this->isValidPathString($request->input('gambar_pendukung_2'))) {
             $data['gambar_pendukung_2'] = $request->input('gambar_pendukung_2');
+        } elseif ($request->boolean('remove_supporting_image_2')) {
+            if ($proyek->gambar_pendukung_2) {
+                $pathsToDelete[] = $proyek->gambar_pendukung_2;
+            }
+            $data['gambar_pendukung_2'] = null;
         }
 
         $proyek->update($data);

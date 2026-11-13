@@ -323,7 +323,7 @@ export function hasSupportingImagesInModal(modal) {
         const input = modal.querySelector(`input[name="${name}"]`);
         if (input?.files?.length > 0) return true;
         const preview = input?.closest('.form-group')?.querySelector('[data-image-preview]');
-        return Boolean(preview?.dataset?.existingUrl);
+        return Boolean(preview?.dataset?.existingUrl && preview?.dataset?.removedExisting !== 'true');
     });
 }
 
@@ -401,6 +401,9 @@ export const CMS_FIELD_MAPPINGS = {
         deskripsi_singkat: 'description',
         tanggal_mulai: 'date',
         status_proyek: 'status',
+        image: 'image',
+        supporting_image_1: 'supporting_image_1',
+        supporting_image_2: 'supporting_image_2',
         dokumentasi_visual_utama: 'image',
         gambar_pendukung_1: 'supporting_image_1',
         gambar_pendukung_2: 'supporting_image_2',
@@ -409,6 +412,9 @@ export const CMS_FIELD_MAPPINGS = {
         judul_berita: 'title',
         isi_artikel_ringkas: 'content',
         tanggal_rilis: 'date',
+        image: 'image',
+        supporting_image_1: 'supporting_image_1',
+        supporting_image_2: 'supporting_image_2',
         gambar_pendukung: 'image',
         gambar_pendukung_1: 'supporting_image_1',
         gambar_pendukung_2: 'supporting_image_2',
@@ -424,12 +430,40 @@ export const CMS_FIELD_MAPPINGS = {
         anggota_alumni_id: 'author',
         tahun_diperoleh: 'date',
         deskripsi: 'content',
+        image: 'image',
+        supporting_image_1: 'supporting_image_1',
+        supporting_image_2: 'supporting_image_2',
         dokumentasi_bukti: 'image',
         gambar_utama: 'image',
         gambar_pendukung_1: 'supporting_image_1',
         gambar_pendukung_2: 'supporting_image_2',
     },
 };
+
+export function isImageMarkedForRemoval(formOrModal, fieldName) {
+    if (!formOrModal || !fieldName) return false;
+    const input = formOrModal.querySelector?.(`input[name="${fieldName}"]`);
+    if (input?.files?.length > 0) return false;
+    const preview = input?.closest?.('.form-group')?.querySelector?.('[data-image-preview]');
+    return preview?.dataset?.removedExisting === 'true';
+}
+
+function appendCmsImagePayloadFields(formData, form, isEdit) {
+    const fieldPairs = [
+        { input: 'image', removeFlag: 'remove_image' },
+        { input: 'supporting_image_1', removeFlag: 'remove_supporting_image_1' },
+        { input: 'supporting_image_2', removeFlag: 'remove_supporting_image_2' },
+    ];
+
+    fieldPairs.forEach(({ input, removeFlag }) => {
+        const file = form?.querySelector?.(`[name="${input}"]`)?.files?.[0];
+        if (file) {
+            formData.append(input, file);
+        } else if (isEdit && isImageMarkedForRemoval(form, input)) {
+            formData.append(removeFlag, '1');
+        }
+    });
+}
 
 export function buildResearchPayload(form, isEdit = false) {
     const admin = getAdminUser();
@@ -456,20 +490,7 @@ export function buildResearchPayload(form, isEdit = false) {
         formData.append('admin_id', String(adminId));
     }
 
-    const imageFile = form?.querySelector('[name="image"]')?.files?.[0];
-    if (imageFile) {
-        formData.append('image', imageFile);
-    }
-
-    const supp1File = form?.querySelector('[name="supporting_image_1"]')?.files?.[0];
-    if (supp1File) {
-        formData.append('supporting_image_1', supp1File);
-    }
-
-    const supp2File = form?.querySelector('[name="supporting_image_2"]')?.files?.[0];
-    if (supp2File) {
-        formData.append('supporting_image_2', supp2File);
-    }
+    appendCmsImagePayloadFields(formData, form, isEdit);
 
     return formData;
 }
@@ -499,20 +520,7 @@ export function buildNewsPayload(form, isEdit = false) {
         formData.append('admin_id', String(adminId));
     }
 
-    const imageFile = form?.querySelector('[name="image"]')?.files?.[0];
-    if (imageFile) {
-        formData.append('image', imageFile);
-    }
-
-    const supp1File = form?.querySelector('[name="supporting_image_1"]')?.files?.[0];
-    if (supp1File) {
-        formData.append('supporting_image_1', supp1File);
-    }
-
-    const supp2File = form?.querySelector('[name="supporting_image_2"]')?.files?.[0];
-    if (supp2File) {
-        formData.append('supporting_image_2', supp2File);
-    }
+    appendCmsImagePayloadFields(formData, form, isEdit);
 
     return formData;
 }
@@ -579,20 +587,7 @@ export function buildAchievementPayload(form, isEdit = false) {
         formData.append('_method', 'PUT');
     }
 
-    const imageFile = form?.querySelector('[name="image"]')?.files?.[0];
-    if (imageFile) {
-        formData.append('image', imageFile);
-    }
-
-    const supp1File = form?.querySelector('[name="supporting_image_1"]')?.files?.[0];
-    if (supp1File) {
-        formData.append('supporting_image_1', supp1File);
-    }
-
-    const supp2File = form?.querySelector('[name="supporting_image_2"]')?.files?.[0];
-    if (supp2File) {
-        formData.append('supporting_image_2', supp2File);
-    }
+    appendCmsImagePayloadFields(formData, form, isEdit);
 
     return formData;
 }
@@ -659,6 +654,39 @@ function setClearButtonVisible(previewEl, visible) {
     }
 }
 
+export function resolvePreviewFallbackUrl(previewEl) {
+    const id = String(previewEl?.id || '').toLowerCase();
+    if (id.includes('news')) return '/images/news/news-1.jpg';
+    if (id.includes('achievement')) return '/images/home/achievement-1.jpg';
+    return '/images/research/research-1.jpg';
+}
+
+export function normalizePreviewImageUrl(url, previewEl) {
+    if (typeof url !== 'string') return '';
+    const trimmed = url.trim();
+    if (!trimmed) return '';
+    if (/^(javascript|data|vbscript):/i.test(trimmed)) return '';
+
+    const pathOnly = trimmed.split('?')[0].toLowerCase();
+    if (pathOnly.endsWith('.pdf')) {
+        return resolvePreviewFallbackUrl(previewEl);
+    }
+
+    if (/^(blob:|https?:\/\/)/i.test(trimmed)) {
+        return trimmed;
+    }
+    if (trimmed.startsWith('/images/') || trimmed.startsWith('/storage/')) {
+        return trimmed;
+    }
+    if (trimmed.startsWith('images/') || trimmed.startsWith('storage/')) {
+        return `/${trimmed}`;
+    }
+    if (trimmed.includes('..')) {
+        return resolvePreviewFallbackUrl(previewEl);
+    }
+    return `/storage/${trimmed.replace(/^\/+/, '')}`;
+}
+
 export function setPreviewImage(previewEl, url, filename = '', caption = '', options = {}) {
     if (!previewEl) return;
     revokePreviewObjectUrl(previewEl);
@@ -667,42 +695,59 @@ export function setPreviewImage(previewEl, url, filename = '', caption = '', opt
     const nameEl = previewEl.querySelector('[data-preview-name]');
     const capEl = previewEl.querySelector('[data-preview-caption]');
 
-    if (!url) {
+    const normalizedUrl = url ? normalizePreviewImageUrl(url, previewEl) : '';
+    if (!normalizedUrl) {
         previewEl.style.display = 'none';
-        if (img) img.removeAttribute('src');
+        if (img) {
+            img.onerror = null;
+            img.removeAttribute('src');
+        }
         if (nameEl) nameEl.textContent = '';
         if (capEl) capEl.textContent = '';
         setClearButtonVisible(previewEl, false);
-        if (options.clearExisting !== false && previewEl.dataset) {
-            delete previewEl.dataset.existingUrl;
-            delete previewEl.dataset.existingFilename;
-            delete previewEl.dataset.existingCaption;
+        if (previewEl.dataset) {
+            previewEl.dataset.isNewFile = 'false';
+            if (options.preserveRemoved !== true) {
+                delete previewEl.dataset.removedExisting;
+            }
+            if (options.clearExisting !== false) {
+                delete previewEl.dataset.existingUrl;
+                delete previewEl.dataset.existingFilename;
+                delete previewEl.dataset.existingCaption;
+            }
         }
         return;
     }
 
     const isBlobUrl = typeof url === 'string' && url.startsWith('blob:');
     const isNewFile = Boolean(options.isNewFile ?? isBlobUrl);
-    const resolvedName = filename || url.split('/').pop().split('\\').pop() || 'Gambar';
+    const resolvedName = filename || normalizedUrl.split('/').pop().split('\\').pop() || 'Gambar';
     const resolvedCaption = caption || 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)';
+    const fallbackUrl = resolvePreviewFallbackUrl(previewEl);
 
-    if (img) img.src = url;
+    if (img) {
+        img.onerror = () => {
+            img.onerror = null;
+            img.src = fallbackUrl;
+        };
+        img.src = normalizedUrl;
+    }
     if (nameEl) nameEl.textContent = resolvedName;
     if (capEl) capEl.textContent = resolvedCaption;
     previewEl.style.display = 'flex';
+    setClearButtonVisible(previewEl, true);
 
-    if (isNewFile) {
-        if (isBlobUrl && previewEl.dataset) {
+    if (previewEl.dataset) {
+        previewEl.dataset.isNewFile = isNewFile ? 'true' : 'false';
+        delete previewEl.dataset.removedExisting;
+        if (isNewFile && isBlobUrl) {
             previewEl.dataset.objectUrl = url;
         }
-        setClearButtonVisible(previewEl, true);
-    } else {
-        if (previewEl.dataset) {
-            previewEl.dataset.existingUrl = url;
+        if (!isNewFile) {
+            previewEl.dataset.existingUrl = normalizedUrl;
             previewEl.dataset.existingFilename = resolvedName;
             previewEl.dataset.existingCaption = resolvedCaption;
         }
-        setClearButtonVisible(previewEl, false);
     }
 }
 
@@ -715,17 +760,22 @@ export function clearFileSelection(triggerEl) {
     const previewEl = group.querySelector('[data-image-preview]');
     const modal = group.closest?.('[data-modal]');
     const isEdit = Boolean(modal?.id?.startsWith('edit-'));
+    const modalId = modal?.id || '';
+    const existingUrl = previewEl?.dataset?.existingUrl || '';
+    const isNewFile = previewEl?.dataset?.isNewFile === 'true';
+    const stillRemoved = isEdit && previewEl?.dataset?.removedExisting === 'true';
+    const isClearButton = typeof triggerEl?.matches === 'function'
+        ? triggerEl.matches('[data-clear-file]')
+        : Boolean(triggerEl?.dataset && 'clearFile' in triggerEl.dataset);
 
     revokePreviewObjectUrl(previewEl);
 
     if (fileInput) {
         fileInput.value = '';
-        const modalId = modal?.id || '';
         clearFieldError(fileInput, `${modalId}-${fileInput.name}-error`);
     }
 
-    const existingUrl = previewEl?.dataset?.existingUrl || '';
-    if (isEdit && existingUrl) {
+    if (isEdit && existingUrl && (isNewFile || (!isClearButton && !stillRemoved))) {
         if (textEl) {
             textEl.textContent = 'Pilih File (Biarkan kosong jika tidak diganti)';
             textEl.style.color = 'var(--color-primary-300)';
@@ -737,14 +787,42 @@ export function clearFileSelection(triggerEl) {
             previewEl.dataset.existingCaption || '',
             { isEditExisting: true, clearExisting: false }
         );
-    } else {
+        return;
+    }
+
+    if (isEdit && existingUrl && isClearButton && !isNewFile) {
+        if (previewEl?.dataset) {
+            previewEl.dataset.removedExisting = 'true';
+        }
+        setPreviewImage(previewEl, '', '', '', {
+            clearExisting: false,
+            preserveRemoved: true,
+        });
         if (textEl) {
-            textEl.textContent = isEdit
+            textEl.textContent = fileInput?.name === 'image'
+                ? 'Gambar utama dihapus. Pilih gambar pengganti'
+                : 'Gambar akan dihapus saat disimpan';
+            textEl.style.color = 'var(--color-primary-700)';
+        }
+        return;
+    }
+
+    setPreviewImage(previewEl, '', '', '', {
+        clearExisting: !isEdit || !existingUrl,
+        preserveRemoved: stillRemoved,
+    });
+    if (textEl) {
+        if (stillRemoved) {
+            textEl.textContent = fileInput?.name === 'image'
+                ? 'Gambar utama dihapus. Pilih gambar pengganti'
+                : 'Gambar akan dihapus saat disimpan';
+            textEl.style.color = 'var(--color-primary-700)';
+        } else {
+            textEl.textContent = isEdit && existingUrl
                 ? 'Pilih File (Biarkan kosong jika tidak diganti)'
                 : 'Pilih File';
             textEl.style.color = 'var(--color-primary-300)';
         }
-        setPreviewImage(previewEl, '');
     }
 }
 
@@ -809,12 +887,23 @@ export function handleFileInputChange(fileInput) {
 }
 
 export function validateMainImageSelection(form, modalId, resourceType, isEdit) {
-    if (isEdit || !['research', 'news', 'achievement'].includes(resourceType)) {
+    if (!['research', 'news', 'achievement'].includes(resourceType)) {
         return true;
     }
     const imageInput = form?.querySelector('input[name="image"]');
     if (!imageInput) return true;
-    if (!imageInput.files || imageInput.files.length === 0) {
+
+    const hasNewFile = Boolean(imageInput.files && imageInput.files.length > 0);
+    if (isEdit) {
+        if (!hasNewFile && isImageMarkedForRemoval(form, 'image')) {
+            showFieldError(imageInput, `${modalId}-image-error`, 'Gambar utama wajib diisi. Pilih gambar pengganti terlebih dahulu.');
+            imageInput.focus?.();
+            return false;
+        }
+        return true;
+    }
+
+    if (!hasNewFile) {
         showFieldError(imageInput, `${modalId}-image-error`, 'Gambar utama wajib diisi.');
         imageInput.focus?.();
         return false;
@@ -827,6 +916,10 @@ function resetModalFileInputs(modal, isEdit = false) {
     modal.querySelectorAll('[data-image-preview]').forEach((previewEl) => {
         revokePreviewObjectUrl(previewEl);
         setClearButtonVisible(previewEl, false);
+        if (previewEl.dataset) {
+            delete previewEl.dataset.removedExisting;
+            previewEl.dataset.isNewFile = 'false';
+        }
         if (!isEdit) {
             setPreviewImage(previewEl, '');
         }
@@ -959,7 +1052,7 @@ export function populateEditModal(modalId, item, editBtn) {
             journal: item.dataset.itemJournal || data.journal || '',
             year: item.dataset.itemYear || data.year || '',
             doi: item.dataset.itemDoi || data.doi || '',
-            image: item.dataset.itemImage || data.image || item.querySelector?.('img.news-card__image, img.achievement-card__image, .achievement-card img')?.getAttribute('src') || '',
+            image: item.dataset.itemImage || data.image || item.querySelector?.('img.research-card__image, img.news-card__image, img.achievement-card__image, .achievement-card img')?.getAttribute('src') || '',
             supportingImage1: item.dataset.itemSupportingImage1 || data.supporting_image_1 || '',
             supportingImage2: item.dataset.itemSupportingImage2 || data.supporting_image_2 || '',
         };

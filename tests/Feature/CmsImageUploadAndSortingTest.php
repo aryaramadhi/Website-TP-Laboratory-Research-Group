@@ -423,4 +423,150 @@ class CmsImageUploadAndSortingTest extends TestCase
         $this->get('/berita')->assertStatus(200);
         $this->get('/prestasi')->assertStatus(200);
     }
+
+    public function test_edit_image_removal_lifecycle_across_cms_modules(): void
+    {
+        $modules = [
+            [
+                'endpoint' => '/api/proyek-riset',
+                'model' => ProyekRiset::class,
+                'idField' => 'proyek_id',
+                'mainCol' => 'dokumentasi_visual_utama',
+                'createPayload' => [
+                    'judul_penelitian_simulasi' => 'Riset Edit Image UX',
+                    'deskripsi_singkat' => 'Deskripsi riset awal',
+                    'tanggal_mulai' => '2026-04-01',
+                    'status_proyek' => 'Sedang Berjalan',
+                    'admin_id' => $this->admin->admin_id,
+                ],
+                'updatePayload' => ['judul_penelitian_simulasi' => 'Riset Edit Image UX Updated'],
+            ],
+            [
+                'endpoint' => '/api/berita-isu',
+                'model' => BeritaIsu::class,
+                'idField' => 'berita_id',
+                'mainCol' => 'gambar_pendukung',
+                'createPayload' => [
+                    'judul_berita' => 'Berita Edit Image UX',
+                    'isi_artikel_ringkas' => 'Isi berita awal',
+                    'tanggal_rilis' => '2026-04-01',
+                    'admin_id' => $this->admin->admin_id,
+                ],
+                'updatePayload' => ['judul_berita' => 'Berita Edit Image UX Updated'],
+            ],
+            [
+                'endpoint' => '/api/prestasi-pencapaian',
+                'model' => PrestasiPencapaian::class,
+                'idField' => 'prestasi_id',
+                'mainCol' => 'gambar_utama',
+                'createPayload' => [
+                    'nama_prestasi' => 'Prestasi Edit Image UX',
+                    'tahun_diperoleh' => 2026,
+                    'deskripsi' => 'Deskripsi prestasi awal',
+                    'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
+                ],
+                'updatePayload' => ['nama_prestasi' => 'Prestasi Edit Image UX Updated'],
+            ],
+        ];
+
+        foreach ($modules as $cfg) {
+            $createRes = $this->postJson($cfg['endpoint'], array_merge($cfg['createPayload'], [
+                'image' => UploadedFile::fake()->image('main-orig.jpg'),
+                'supporting_image_1' => UploadedFile::fake()->image('supp1-orig.jpg'),
+                'supporting_image_2' => UploadedFile::fake()->image('supp2-orig.jpg'),
+            ]));
+            $createRes->assertStatus(201);
+            $id = $createRes->json("data.{$cfg['idField']}");
+
+            $record = $cfg['model']::findOrFail($id);
+            $origMain = $record->{$cfg['mainCol']};
+            $origSupp1 = $record->gambar_pendukung_1;
+            $origSupp2 = $record->gambar_pendukung_2;
+            Storage::disk('public')->assertExists($origMain);
+            Storage::disk('public')->assertExists($origSupp1);
+            Storage::disk('public')->assertExists($origSupp2);
+
+            // Editing without image flags preserves all saved files.
+            $keepRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
+                '_method' => 'PUT',
+            ]));
+            $keepRes->assertStatus(200);
+            $record->refresh();
+            $this->assertSame($origMain, $record->{$cfg['mainCol']});
+            $this->assertSame($origSupp1, $record->gambar_pendukung_1);
+            $this->assertSame($origSupp2, $record->gambar_pendukung_2);
+
+            // Removing main image without a replacement fails validation and preserves old file.
+            $blockedMainRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
+                '_method' => 'PUT',
+                'remove_image' => '1',
+            ]));
+            $blockedMainRes->assertStatus(422);
+            $blockedMainRes->assertJsonValidationErrors('image');
+            Storage::disk('public')->assertExists($origMain);
+
+            // Removing only supporting_image_1 clears it and removes unreferenced file.
+            $removeSupp1Res = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
+                '_method' => 'PUT',
+                'remove_supporting_image_1' => '1',
+            ]));
+            $removeSupp1Res->assertStatus(200);
+            $record->refresh();
+            $this->assertNull($record->gambar_pendukung_1);
+            $this->assertSame($origSupp2, $record->gambar_pendukung_2);
+            Storage::disk('public')->assertMissing($origSupp1);
+            Storage::disk('public')->assertExists($origSupp2);
+
+            // Replacing main image alongside remove_image=1 succeeds and deletes old main file.
+            // Removing supporting_image_2 in the same update clears it too.
+            $replaceRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
+                '_method' => 'PUT',
+                'remove_image' => '1',
+                'image' => UploadedFile::fake()->image('main-replacement.png'),
+                'remove_supporting_image_2' => '1',
+            ]));
+            $replaceRes->assertStatus(200);
+            $record->refresh();
+            $this->assertNotSame($origMain, $record->{$cfg['mainCol']});
+            $this->assertNull($record->gambar_pendukung_2);
+            Storage::disk('public')->assertMissing($origMain);
+            Storage::disk('public')->assertExists($record->{$cfg['mainCol']});
+            Storage::disk('public')->assertMissing($origSupp2);
+        }
+    }
+
+    public function test_edit_removal_preserves_shared_supporting_image_file(): void
+    {
+        $sharedRes = $this->postJson('/api/berita-isu', [
+            'judul_berita' => 'Berita Berbagi Gambar 1',
+            'isi_artikel_ringkas' => 'Konten 1',
+            'tanggal_rilis' => '2026-04-01',
+            'admin_id' => $this->admin->admin_id,
+            'image' => UploadedFile::fake()->image('main-1.jpg'),
+            'supporting_image_1' => UploadedFile::fake()->image('shared-gallery.jpg'),
+        ]);
+        $sharedRes->assertStatus(201);
+        $firstId = $sharedRes->json('data.berita_id');
+        $first = BeritaIsu::findOrFail($firstId);
+        $sharedPath = $first->gambar_pendukung_1;
+
+        BeritaIsu::create([
+            'judul_berita' => 'Berita Berbagi Gambar 2',
+            'isi_artikel_ringkas' => 'Konten 2',
+            'tanggal_rilis' => '2026-04-02',
+            'admin_id' => $this->admin->admin_id,
+            'gambar_pendukung' => 'news/static-other.jpg',
+            'gambar_pendukung_1' => $sharedPath,
+        ]);
+
+        $clearRes = $this->postJson("/api/berita-isu/{$firstId}", [
+            '_method' => 'PUT',
+            'judul_berita' => 'Berita Berbagi Gambar 1 Edited',
+            'remove_supporting_image_1' => '1',
+        ]);
+        $clearRes->assertStatus(200);
+        $first->refresh();
+        $this->assertNull($first->gambar_pendukung_1);
+        Storage::disk('public')->assertExists($sharedPath);
+    }
 }

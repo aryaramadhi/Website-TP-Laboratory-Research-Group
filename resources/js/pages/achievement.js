@@ -218,7 +218,7 @@ export function renderAchievementCard(item) {
     const safeHref = escapeHtml(item.href || '#');
     const imageCandidate = isDocumentFile(item.image) ? DEFAULT_ACHIEVEMENT_IMAGE : item.image;
     const safeImage = escapeHtml(sanitizeImageUrl(imageCandidate, DEFAULT_ACHIEVEMENT_IMAGE));
-    const rawCandidate = item.rawProof ?? item.raw?.dokumentasi_bukti ?? item.documentUrl ?? item.image ?? '';
+    const rawCandidate = item.rawImage ?? item.raw?.gambar_utama ?? item.rawProof ?? item.raw?.dokumentasi_bukti ?? item.documentUrl ?? item.image ?? '';
     const safeRawImage = (typeof rawCandidate === 'string' && /^(javascript|data|vbscript):/i.test(rawCandidate.trim()))
         ? ''
         : escapeHtml(rawCandidate);
@@ -592,8 +592,8 @@ export async function loadAchievementDetail(detailContainer) {
                 cardEl.dataset.itemDate = item.isoDate || (item.year ? `${item.year}-01-01` : '');
                 cardEl.dataset.itemContent = item.description || '';
                 cardEl.dataset.itemDescription = item.description || '';
-                const rawProofStr = item.rawProof ?? item.raw?.dokumentasi_bukti ?? item.documentUrl ?? item.image ?? '';
-                cardEl.dataset.itemImage = (typeof rawProofStr === 'string' && /^(javascript|data|vbscript):/i.test(rawProofStr.trim())) ? '' : rawProofStr;
+                const rawMainImage = item.rawImage ?? item.raw?.gambar_utama ?? item.rawProof ?? item.raw?.dokumentasi_bukti ?? item.documentUrl ?? item.image ?? '';
+                cardEl.dataset.itemImage = (typeof rawMainImage === 'string' && /^(javascript|data|vbscript):/i.test(rawMainImage.trim())) ? '' : rawMainImage;
                 if (item.documentUrl) {
                     cardEl.dataset.itemDocument = item.documentUrl;
                 }

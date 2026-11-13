@@ -94,11 +94,23 @@ class BeritaIsuController extends Controller
             'image'                => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'supporting_image_1'   => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_pendukung_1'   => 'nullable',
-            'supporting_image_2'   => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-            'gambar_pendukung_2'   => 'nullable',
-            'topik_utama'          => 'nullable|string',
-            'admin_id'             => 'sometimes|required|exists:admins,admin_id',
+            'supporting_image_2'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'gambar_pendukung_2'        => 'nullable',
+            'remove_image'              => 'nullable|in:0,1,true,false',
+            'remove_supporting_image_1' => 'nullable|in:0,1,true,false',
+            'remove_supporting_image_2' => 'nullable|in:0,1,true,false',
+            'topik_utama'               => 'nullable|string',
+            'admin_id'                  => 'sometimes|required|exists:admins,admin_id',
         ]);
+
+        $mainFile = $request->file('image') ?? $request->file('gambar_pendukung');
+        $hasMainPathInput = $request->filled('gambar_pendukung')
+            && $this->isValidPathString($request->input('gambar_pendukung'));
+        if ($request->boolean('remove_image') && !$mainFile && !$hasMainPathInput) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'image' => ['Gambar utama wajib diisi dan tidak dapat dihapus tanpa gambar pengganti.'],
+            ]);
+        }
 
         $data = [];
         foreach (['judul_berita', 'tanggal_rilis', 'isi_artikel_ringkas', 'topik_utama', 'admin_id'] as $field) {
@@ -135,6 +147,11 @@ class BeritaIsuController extends Controller
             }
         } elseif ($request->filled('gambar_pendukung_1') && $this->isValidPathString($request->input('gambar_pendukung_1'))) {
             $data['gambar_pendukung_1'] = $request->input('gambar_pendukung_1');
+        } elseif ($request->boolean('remove_supporting_image_1')) {
+            if ($berita->gambar_pendukung_1) {
+                $pathsToDelete[] = $berita->gambar_pendukung_1;
+            }
+            $data['gambar_pendukung_1'] = null;
         }
 
         $supp2File = $request->file('supporting_image_2') ?? $request->file('gambar_pendukung_2');
@@ -149,6 +166,11 @@ class BeritaIsuController extends Controller
             }
         } elseif ($request->filled('gambar_pendukung_2') && $this->isValidPathString($request->input('gambar_pendukung_2'))) {
             $data['gambar_pendukung_2'] = $request->input('gambar_pendukung_2');
+        } elseif ($request->boolean('remove_supporting_image_2')) {
+            if ($berita->gambar_pendukung_2) {
+                $pathsToDelete[] = $berita->gambar_pendukung_2;
+            }
+            $data['gambar_pendukung_2'] = null;
         }
 
         $berita->update($data);
