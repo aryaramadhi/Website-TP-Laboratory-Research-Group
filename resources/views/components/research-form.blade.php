@@ -132,7 +132,7 @@
             </div>
             <div class="form-group">
                 <label for="{{ $id }}-image" class="form-label">
-                    Gambar Utama {{ $isEdit ? '(Kosongkan jika tidak diganti)' : '' }}
+                    Gambar Utama
                 </label>
                 <div class="form-file-group">
                     <input
@@ -145,7 +145,7 @@
                         data-file-input
                     >
                     <div class="form-file-custom">
-                        <span class="form-file-text" data-file-text>{{ $isEdit ? 'Pilih File (Biarkan kosong jika tidak diganti)' : 'Pilih File' }}</span>
+                        <span class="form-file-text" data-file-text>Pilih File</span>
                     </div>
                 </div>
                 <div class="form-image-preview" id="{{ $id }}-image-preview" data-image-preview data-preview-role="main">

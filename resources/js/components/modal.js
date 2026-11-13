@@ -939,9 +939,14 @@ export function clearFileSelection(triggerEl) {
         clearFieldError(fileInput, `${modalId}-${fileInput.name}-error`);
     }
 
+    const isMainImageField = fileInput?.name === 'image';
+    const defaultEditText = isMainImageField
+        ? 'Pilih File'
+        : 'Pilih File (Biarkan kosong jika tidak diganti)';
+
     if (isEdit && existingUrl && (isNewFile || (!isClearButton && !stillRemoved))) {
         if (textEl) {
-            textEl.textContent = 'Pilih File (Biarkan kosong jika tidak diganti)';
+            textEl.textContent = defaultEditText;
             textEl.style.color = 'var(--color-primary-300)';
         }
         setPreviewImage(
@@ -964,7 +969,7 @@ export function clearFileSelection(triggerEl) {
             textEl.style.color = 'var(--color-primary-700)';
         } else {
             textEl.textContent = isEdit && existingUrl
-                ? 'Pilih File (Biarkan kosong jika tidak diganti)'
+                ? defaultEditText
                 : 'Pilih File';
             textEl.style.color = 'var(--color-primary-300)';
         }
@@ -1122,7 +1127,7 @@ function resetModalFileInputs(modal, isEdit = false) {
         fi.value = '';
         const textEl = fi.closest('.form-file-group')?.querySelector('[data-file-text]');
         if (textEl) {
-            textEl.textContent = isEdit
+            textEl.textContent = isEdit && fi.name !== 'image'
                 ? 'Pilih File (Biarkan kosong jika tidak diganti)'
                 : 'Pilih File';
             textEl.style.color = 'var(--color-primary-300)';
@@ -1225,7 +1230,7 @@ function populateEditMainImage(modal, imageUrl) {
     const mainField = getFieldParts(modal, 'image');
     const previewEl = mainField.preview || modal?.querySelector?.(`#${modal.id}-image-preview`);
     if (mainField.textEl) {
-        mainField.textEl.textContent = 'Pilih File (Biarkan kosong jika tidak diganti)';
+        mainField.textEl.textContent = 'Pilih File';
         mainField.textEl.style.color = 'var(--color-primary-300)';
     }
     setPreviewImage(
