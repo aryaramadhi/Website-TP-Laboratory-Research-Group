@@ -769,9 +769,28 @@ function isMainPreviewElement(previewEl) {
     return id.endsWith('-image-preview') && !id.includes('supporting-image');
 }
 
-export function setPreviewImage(previewEl, url, filename = '', caption = '', options = {}) {
+function extractPreviewFilename(url, filename = '') {
+    const explicitName = typeof filename === 'string' ? filename.trim() : '';
+    if (explicitName) {
+        return explicitName.split('/').pop().split('\\').pop() || explicitName;
+    }
+    if (typeof url !== 'string' || !url.trim()) return '';
+    const cleanPath = url.trim().split('#')[0].split('?')[0];
+    const rawSegment = cleanPath.split('/').pop().split('\\').pop() || '';
+    try {
+        return decodeURIComponent(rawSegment);
+    } catch (e) {
+        return rawSegment;
+    }
+}
+
+export function setPreviewImage(previewEl, url, filename = '', captionOrOptions = '', maybeOptions = {}) {
     if (!previewEl) return;
     revokePreviewObjectUrl(previewEl);
+
+    const options = (captionOrOptions && typeof captionOrOptions === 'object')
+        ? captionOrOptions
+        : (maybeOptions && typeof maybeOptions === 'object' ? maybeOptions : {});
 
     const img = previewEl.querySelector('[data-preview-img]');
     const nameEl = previewEl.querySelector('[data-preview-name]');
@@ -789,8 +808,15 @@ export function setPreviewImage(previewEl, url, filename = '', caption = '', opt
             img.onerror = null;
             img.removeAttribute('src');
         }
-        if (nameEl) nameEl.textContent = '';
-        if (capEl) capEl.textContent = '';
+        if (nameEl) {
+            nameEl.textContent = '';
+            nameEl.title = '';
+            nameEl.removeAttribute?.('title');
+        }
+        if (capEl) {
+            capEl.textContent = '';
+            capEl.hidden = true;
+        }
         setClearButtonVisible(previewEl, false);
         if (previewEl.dataset) {
             previewEl.dataset.isNewFile = 'false';
@@ -808,8 +834,7 @@ export function setPreviewImage(previewEl, url, filename = '', caption = '', opt
 
     const isBlobUrl = typeof url === 'string' && url.startsWith('blob:');
     const isNewFile = Boolean(options.isNewFile ?? isBlobUrl);
-    const resolvedName = filename || normalizedUrl.split('/').pop().split('\\').pop() || 'Gambar';
-    const resolvedCaption = caption || 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)';
+    const resolvedName = extractPreviewFilename(normalizedUrl, filename) || 'gambar.jpg';
     const fallbackUrl = resolvePreviewFallbackUrl(previewEl);
 
     if (img) {
@@ -819,8 +844,15 @@ export function setPreviewImage(previewEl, url, filename = '', caption = '', opt
         };
         img.src = normalizedUrl;
     }
-    if (nameEl) nameEl.textContent = resolvedName;
-    if (capEl) capEl.textContent = resolvedCaption;
+    if (nameEl) {
+        nameEl.textContent = resolvedName;
+        nameEl.title = resolvedName;
+        nameEl.setAttribute?.('title', resolvedName);
+    }
+    if (capEl) {
+        capEl.textContent = '';
+        capEl.hidden = true;
+    }
     previewEl.style.display = 'flex';
     // Only supporting image previews expose the [X] button; main images cannot be cleared.
     setClearButtonVisible(previewEl, !isMain);
@@ -834,7 +866,7 @@ export function setPreviewImage(previewEl, url, filename = '', caption = '', opt
         if (!isNewFile) {
             previewEl.dataset.existingUrl = normalizedUrl;
             previewEl.dataset.existingFilename = resolvedName;
-            previewEl.dataset.existingCaption = resolvedCaption;
+            delete previewEl.dataset.existingCaption;
         }
     }
 }
@@ -886,7 +918,7 @@ export function clearFileSelection(triggerEl) {
                     f.preview,
                     f.preview?.dataset?.existingUrl || '',
                     f.preview?.dataset?.existingFilename || '',
-                    f.preview?.dataset?.existingCaption || '',
+                    '',
                     { isEditExisting: true, clearExisting: false }
                 );
             });
@@ -953,7 +985,7 @@ export function clearFileSelection(triggerEl) {
             previewEl,
             existingUrl,
             previewEl.dataset.existingFilename || '',
-            previewEl.dataset.existingCaption || '',
+            '',
             { isEditExisting: true, clearExisting: false }
         );
         return;
@@ -1042,8 +1074,7 @@ export function handleFileInputChange(fileInput) {
             const objectUrl = (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function')
                 ? URL.createObjectURL(file)
                 : file.name;
-            const sizeKb = Math.max(1, Math.round(file.size / 1024));
-            setPreviewImage(previewEl, objectUrl, file.name, `File baru (${sizeKb} KB)`, {
+            setPreviewImage(previewEl, objectUrl, file.name, '', {
                 isNewFile: true,
                 clearExisting: false,
                 allowClear: isSupportingField,
@@ -1237,7 +1268,7 @@ function populateEditMainImage(modal, imageUrl) {
         previewEl,
         imageUrl,
         '',
-        'Gambar saat ini (Kosongkan jika tidak ingin mengubah)',
+        '',
         { isEditExisting: true, allowClear: false }
     );
 }
@@ -1247,16 +1278,14 @@ function populateEditSupportingImages(modal, supportingImage1, supportingImage2)
     const { supp1, supp2 } = getSupportingFields(modal);
     setSupportingStatusVisible(modal, false);
 
-    [
-        { field: supp1, url: hasPair ? supportingImage1 : '', caption: 'Gambar pendukung 1 saat ini' },
-        { field: supp2, url: hasPair ? supportingImage2 : '', caption: 'Gambar pendukung 2 saat ini' },
-    ].forEach(({ field, url, caption }) => {
+    [supp1, supp2].forEach((field, idx) => {
+        const url = hasPair ? (idx === 0 ? supportingImage1 : supportingImage2) : '';
         if (field.textEl) {
             field.textEl.textContent = url
                 ? 'Pilih File (Biarkan kosong jika tidak diganti)'
                 : 'Pilih File';
         }
-        setPreviewImage(field.preview, url, '', caption, { isEditExisting: true, allowClear: true });
+        setPreviewImage(field.preview, url, '', '', { isEditExisting: true, allowClear: true });
     });
 }
 

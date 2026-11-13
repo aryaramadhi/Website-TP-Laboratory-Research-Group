@@ -123,6 +123,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
+    align-items: start;
     margin-bottom: 18px;
 }
 
@@ -449,8 +450,7 @@
 }
 
 .form-image-preview__caption {
-    font-size: 0.75rem;
-    color: var(--color-primary-400);
+    display: none;
 }
 
 .form-label-row {

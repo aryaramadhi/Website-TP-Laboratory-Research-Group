@@ -133,7 +133,6 @@
                     <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
                     <div class="form-image-preview__info">
                         <span class="form-image-preview__filename" data-preview-name></span>
-                        <span class="form-image-preview__caption" data-preview-caption></span>
                     </div>
                 </div>
                 <div class="form-field-error" id="{{ $id }}-image-error" role="alert" style="display: none;">
@@ -168,7 +167,6 @@
                             <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
                             <div class="form-image-preview__info">
                                 <span class="form-image-preview__filename" data-preview-name></span>
-                                <span class="form-image-preview__caption" data-preview-caption></span>
                             </div>
                             <button
                                 type="button"
@@ -208,7 +206,6 @@
                             <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
                             <div class="form-image-preview__info">
                                 <span class="form-image-preview__filename" data-preview-name></span>
-                                <span class="form-image-preview__caption" data-preview-caption></span>
                             </div>
                             <button
                                 type="button"
