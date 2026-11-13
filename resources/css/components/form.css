@@ -422,7 +422,9 @@
     transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-.form-image-preview__remove[hidden] {
+.form-image-preview__remove[hidden],
+[data-preview-role="main"] .form-image-preview__remove,
+[data-preview-role="main"] [data-clear-file] {
     display: none;
 }
 

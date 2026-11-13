@@ -697,13 +697,30 @@ function revokePreviewObjectUrl(previewEl) {
 }
 
 function setClearButtonVisible(previewEl, visible) {
-    const clearBtn = previewEl?.querySelector?.('[data-clear-file]');
+    const clearBtn = previewEl?.querySelector?.('[data-clear-file], .form-image-preview__remove');
     if (!clearBtn) return;
+
+    if (isMainPreviewElement(previewEl)) {
+        clearBtn.hidden = true;
+        clearBtn.setAttribute('hidden', '');
+        if (clearBtn.style) {
+            clearBtn.style.display = 'none';
+        }
+        clearBtn.remove?.();
+        return;
+    }
+
     clearBtn.hidden = !visible;
     if (visible) {
         clearBtn.removeAttribute('hidden');
+        if (clearBtn.style) {
+            clearBtn.style.display = '';
+        }
     } else {
         clearBtn.setAttribute('hidden', '');
+        if (clearBtn.style) {
+            clearBtn.style.display = 'none';
+        }
     }
 }
 
@@ -742,6 +759,8 @@ export function normalizePreviewImageUrl(url, previewEl) {
 
 function isMainPreviewElement(previewEl) {
     if (!previewEl) return false;
+    if (previewEl.dataset?.previewRole === 'main') return true;
+    if (previewEl.dataset?.previewRole === 'supporting') return false;
     const inputName = previewEl.closest?.('.form-group')?.querySelector?.('[data-file-input]')?.name;
     if (inputName) {
         return inputName === 'image';
@@ -757,6 +776,11 @@ export function setPreviewImage(previewEl, url, filename = '', caption = '', opt
     const img = previewEl.querySelector('[data-preview-img]');
     const nameEl = previewEl.querySelector('[data-preview-name]');
     const capEl = previewEl.querySelector('[data-preview-caption]');
+    const isMain = options.allowClear === false || isMainPreviewElement(previewEl);
+
+    if (previewEl.dataset) {
+        previewEl.dataset.previewRole = isMain ? 'main' : 'supporting';
+    }
 
     const normalizedUrl = url ? normalizePreviewImageUrl(url, previewEl) : '';
     if (!normalizedUrl) {
@@ -799,7 +823,7 @@ export function setPreviewImage(previewEl, url, filename = '', caption = '', opt
     if (capEl) capEl.textContent = resolvedCaption;
     previewEl.style.display = 'flex';
     // Only supporting image previews expose the [X] button; main images cannot be cleared.
-    setClearButtonVisible(previewEl, !isMainPreviewElement(previewEl));
+    setClearButtonVisible(previewEl, !isMain);
 
     if (previewEl.dataset) {
         previewEl.dataset.isNewFile = isNewFile ? 'true' : 'false';
@@ -833,6 +857,11 @@ export function clearFileSelection(triggerEl) {
         ? triggerEl.matches('[data-clear-file]')
         : Boolean(triggerEl?.dataset && 'clearFile' in triggerEl.dataset);
     const isSupportingField = fileInput?.name === 'supporting_image_1' || fileInput?.name === 'supporting_image_2';
+
+    if (isClearButton && (fileInput?.name === 'image' || isMainPreviewElement(previewEl))) {
+        setClearButtonVisible(previewEl, false);
+        return;
+    }
 
     if (isSupportingField && isClearButton) {
         const { supp1, supp2 } = getSupportingFields(scope);
@@ -1012,6 +1041,7 @@ export function handleFileInputChange(fileInput) {
             setPreviewImage(previewEl, objectUrl, file.name, `File baru (${sizeKb} KB)`, {
                 isNewFile: true,
                 clearExisting: false,
+                allowClear: isSupportingField,
             });
         }
 
@@ -1191,6 +1221,22 @@ export function closeModal(modal) {
     clearModalErrors(modal);
 }
 
+function populateEditMainImage(modal, imageUrl) {
+    const mainField = getFieldParts(modal, 'image');
+    const previewEl = mainField.preview || modal?.querySelector?.(`#${modal.id}-image-preview`);
+    if (mainField.textEl) {
+        mainField.textEl.textContent = 'Pilih File (Biarkan kosong jika tidak diganti)';
+        mainField.textEl.style.color = 'var(--color-primary-300)';
+    }
+    setPreviewImage(
+        previewEl,
+        imageUrl,
+        '',
+        'Gambar saat ini (Kosongkan jika tidak ingin mengubah)',
+        { isEditExisting: true, allowClear: false }
+    );
+}
+
 function populateEditSupportingImages(modal, supportingImage1, supportingImage2) {
     const hasPair = Boolean(supportingImage1 && supportingImage2);
     const { supp1, supp2 } = getSupportingFields(modal);
@@ -1205,7 +1251,7 @@ function populateEditSupportingImages(modal, supportingImage1, supportingImage2)
                 ? 'Pilih File (Biarkan kosong jika tidak diganti)'
                 : 'Pilih File';
         }
-        setPreviewImage(field.preview, url, '', caption, { isEditExisting: true });
+        setPreviewImage(field.preview, url, '', caption, { isEditExisting: true, allowClear: true });
     });
 }
 
@@ -1213,28 +1259,32 @@ export function populateEditModal(modalId, item, editBtn) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
 
+    const targetItem = item ||
+        editBtn?.closest?.('.editable-item') ||
+        (typeof document !== 'undefined' ? document.querySelector?.('.editable-item') : null);
+
     let data = {};
-    if (editBtn?.dataset.editItem) {
+    if (editBtn?.dataset?.editItem) {
         try {
             data = JSON.parse(editBtn.dataset.editItem);
         } catch (e) {}
     }
 
-    if (item) {
+    if (targetItem) {
         data = {
-            id: item.dataset.itemId || data.id || '',
-            title: item.dataset.itemTitle || data.title || '',
-            author: item.dataset.itemAuthor || data.author || '',
-            authorId: item.dataset.itemAuthorId || data.anggota_alumni_id || data.author_id || data.authorId || '',
-            date: item.dataset.itemDate || data.date || '',
-            status: item.dataset.itemStatus || data.status || '',
-            description: item.dataset.itemDescription || item.dataset.itemContent || data.description || '',
-            journal: item.dataset.itemJournal || data.journal || '',
-            year: item.dataset.itemYear || data.year || '',
-            doi: item.dataset.itemDoi || data.doi || '',
-            image: item.dataset.itemImage || data.image || item.querySelector?.('img.research-card__image, img.news-card__image, img.achievement-card__image, .achievement-card img')?.getAttribute('src') || '',
-            supportingImage1: item.dataset.itemSupportingImage1 || data.supporting_image_1 || '',
-            supportingImage2: item.dataset.itemSupportingImage2 || data.supporting_image_2 || '',
+            id: targetItem.dataset.itemId || data.id || '',
+            title: targetItem.dataset.itemTitle || data.title || '',
+            author: targetItem.dataset.itemAuthor || data.author || '',
+            authorId: targetItem.dataset.itemAuthorId || data.anggota_alumni_id || data.author_id || data.authorId || '',
+            date: targetItem.dataset.itemDate || data.date || '',
+            status: targetItem.dataset.itemStatus || data.status || '',
+            description: targetItem.dataset.itemDescription || targetItem.dataset.itemContent || data.description || '',
+            journal: targetItem.dataset.itemJournal || data.journal || '',
+            year: targetItem.dataset.itemYear || data.year || '',
+            doi: targetItem.dataset.itemDoi || data.doi || '',
+            image: targetItem.dataset.itemImage || data.image || targetItem.querySelector?.('img.research-card__image, img.news-card__image, img.achievement-card__image, .achievement-card img')?.getAttribute('src') || '',
+            supportingImage1: targetItem.dataset.itemSupportingImage1 || data.supporting_image_1 || '',
+            supportingImage2: targetItem.dataset.itemSupportingImage2 || data.supporting_image_2 || '',
         };
     }
 
@@ -1261,9 +1311,7 @@ export function populateEditModal(modalId, item, editBtn) {
 
         resetModalFileInputs(modal, true);
 
-        const mainPreview = modal.querySelector('#edit-research-modal-image-preview');
-        setPreviewImage(mainPreview, data.image, '', 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)', { isEditExisting: true });
-
+        populateEditMainImage(modal, data.image);
         populateEditSupportingImages(modal, data.supportingImage1, data.supportingImage2);
 
         clearModalErrors(modal);
@@ -1309,9 +1357,7 @@ export function populateEditModal(modalId, item, editBtn) {
 
         resetModalFileInputs(modal, true);
 
-        const mainPreview = modal.querySelector('#edit-news-modal-image-preview');
-        setPreviewImage(mainPreview, data.image, '', 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)', { isEditExisting: true });
-
+        populateEditMainImage(modal, data.image);
         populateEditSupportingImages(modal, data.supportingImage1, data.supportingImage2);
 
         clearModalErrors(modal);
@@ -1346,9 +1392,7 @@ export function populateEditModal(modalId, item, editBtn) {
 
         resetModalFileInputs(modal, true);
 
-        const mainPreview = modal.querySelector('#edit-achievement-modal-image-preview');
-        setPreviewImage(mainPreview, data.image, '', 'Gambar saat ini (Kosongkan jika tidak ingin mengubah)', { isEditExisting: true });
-
+        populateEditMainImage(modal, data.image);
         populateEditSupportingImages(modal, data.supportingImage1, data.supportingImage2);
 
         clearModalErrors(modal);

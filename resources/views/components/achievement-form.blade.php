@@ -129,7 +129,7 @@
                         <span class="form-file-text" data-file-text>{{ $isEdit ? 'Pilih File (Biarkan kosong jika tidak diganti)' : 'Pilih File' }}</span>
                     </div>
                 </div>
-                <div class="form-image-preview" id="{{ $id }}-image-preview" data-image-preview>
+                <div class="form-image-preview" id="{{ $id }}-image-preview" data-image-preview data-preview-role="main">
                     <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
                     <div class="form-image-preview__info">
                         <span class="form-image-preview__filename" data-preview-name></span>
@@ -164,7 +164,7 @@
                                 <span class="form-file-text" data-file-text>{{ $isEdit ? 'Pilih File (Biarkan kosong jika tidak diganti)' : 'Pilih File' }}</span>
                             </div>
                         </div>
-                        <div class="form-image-preview" id="{{ $id }}-supporting-image-1-preview" data-image-preview>
+                        <div class="form-image-preview" id="{{ $id }}-supporting-image-1-preview" data-image-preview data-preview-role="supporting">
                             <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
                             <div class="form-image-preview__info">
                                 <span class="form-image-preview__filename" data-preview-name></span>
@@ -204,7 +204,7 @@
                                 <span class="form-file-text" data-file-text>{{ $isEdit ? 'Pilih File (Biarkan kosong jika tidak diganti)' : 'Pilih File' }}</span>
                             </div>
                         </div>
-                        <div class="form-image-preview" id="{{ $id }}-supporting-image-2-preview" data-image-preview>
+                        <div class="form-image-preview" id="{{ $id }}-supporting-image-2-preview" data-image-preview data-preview-role="supporting">
                             <img src="" alt="Preview" class="form-image-preview__thumb" data-preview-img>
                             <div class="form-image-preview__info">
                                 <span class="form-image-preview__filename" data-preview-name></span>
