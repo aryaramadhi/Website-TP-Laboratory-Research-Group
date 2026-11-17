@@ -68,30 +68,31 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
 }
 
 .publication-accordion__entry {
     position: relative;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--color-secondary-100);
+    padding: 0;
+    border: none;
+    background: transparent;
 }
 
 body.is-admin .publication-accordion__entry {
-    padding-right: 104px;
+    padding-right: 64px;
 }
 
 .publication-accordion__entry .admin-edit-btn {
-    width: 74px;
-    height: 74px;
+    width: 40px;
+    height: 40px;
     top: 50%;
-    right: 24px;
+    right: 12px;
     transform: translateY(-50%);
 }
 
 .publication-accordion__entry .admin-edit-btn .admin-edit-btn__icon {
-    width: 28px;
-    height: 28px;
+    width: 18px;
+    height: 18px;
 }
 
 .publication-accordion__entry:last-child {
@@ -99,40 +100,28 @@ body.is-admin .publication-accordion__entry {
     border-bottom: none;
 }
 
-.publication-accordion__entry-title {
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 1.4;
-    margin-bottom: 6px;
+.publication-accordion__entry-citation {
+    margin: 0;
+    font-size: var(--font-size-body-1);
+    line-height: var(--line-height-body-1);
+    font-weight: 400;
+    color: var(--color-black);
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .publication-accordion__entry-link {
-    color: var(--color-primary-300);
+    color: inherit;
     text-decoration: none;
-    transition: color 0.2s ease;
     word-break: break-word;
-    overflow-wrap: break-word;
+    overflow-wrap: anywhere;
+    transition: opacity 0.2s ease;
 }
 
-.publication-accordion__entry-link:hover {
-    color: var(--color-primary-400);
+.publication-accordion__entry-link:hover,
+.publication-accordion__entry-link:focus-visible {
+    color: inherit;
     text-decoration: underline;
-}
-
-.publication-accordion__entry-authors {
-    font-size: 15px;
-    line-height: 1.5;
-    color: var(--color-neutral-500);
-    margin-bottom: 4px;
-}
-
-.publication-accordion__entry-venue {
-    font-size: 14px;
-    line-height: 1.4;
-    color: var(--color-neutral-400);
-    font-style: italic;
-    word-break: break-word;
-    overflow-wrap: break-word;
 }
 
 @media (max-width: 640px) {
@@ -145,27 +134,28 @@ body.is-admin .publication-accordion__entry {
         padding: 18px 16px;
     }
 
-    .publication-accordion__entry-title {
-        font-size: 16px;
+    .publication-accordion__list {
+        gap: 18px;
     }
 
-    .publication-accordion__entry-authors {
+    .publication-accordion__entry-citation {
         font-size: 14px;
+        line-height: 22px;
     }
 
     body.is-admin .publication-accordion__entry {
-        padding-right: 76px;
+        padding-right: 52px;
     }
 
     .publication-accordion__entry .admin-edit-btn {
-        width: 56px;
-        height: 56px;
-        right: 12px;
+        width: 36px;
+        height: 36px;
+        right: 8px;
     }
 
     .publication-accordion__entry .admin-edit-btn .admin-edit-btn__icon {
-        width: 22px;
-        height: 22px;
+        width: 16px;
+        height: 16px;
     }
 }
 
@@ -179,18 +169,22 @@ body.is-admin .publication-accordion__entry {
         padding: 16px 14px;
     }
 
+    .publication-accordion__list {
+        gap: 18px;
+    }
+
     body.is-admin .publication-accordion__entry {
-        padding-right: 66px;
+        padding-right: 52px;
     }
 
     .publication-accordion__entry .admin-edit-btn {
-        width: 50px;
-        height: 50px;
+        width: 36px;
+        height: 36px;
         right: 8px;
     }
 
     .publication-accordion__entry .admin-edit-btn .admin-edit-btn__icon {
-        width: 20px;
-        height: 20px;
+        width: 16px;
+        height: 16px;
     }
 }

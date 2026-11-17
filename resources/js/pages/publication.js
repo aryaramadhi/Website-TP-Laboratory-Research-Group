@@ -173,6 +173,55 @@ export function groupPublicationsByYear(items) {
     }));
 }
 
+function ensureSentencePeriod(text) {
+    const trimmed = typeof text === 'string' ? text.trim() : '';
+    if (!trimmed) {
+        return '';
+    }
+    return `${escapeHtml(trimmed)}${/[.?!]$/.test(trimmed) ? '' : '.'}`;
+}
+
+export function formatPublicationCitation(item) {
+    if (!item || typeof item !== 'object') {
+        return '';
+    }
+
+    const rawAuthor = typeof item.author === 'string' ? item.author.trim() : '';
+    const rawYear = item.year !== null && item.year !== undefined && String(item.year).trim() !== ''
+        ? String(item.year).trim()
+        : '';
+    const rawTitle = typeof item.title === 'string' ? item.title.trim() : '';
+    const rawJournal = typeof item.journal === 'string' ? item.journal.trim() : '';
+    const validLink = sanitizeExternalLink(item.link || item.doi || '');
+
+    const segments = [];
+
+    if (rawAuthor && rawYear) {
+        segments.push(`${escapeHtml(rawAuthor)} (${escapeHtml(rawYear)}).`);
+    } else if (rawAuthor) {
+        segments.push(ensureSentencePeriod(rawAuthor));
+    } else if (rawYear) {
+        segments.push(`(${escapeHtml(rawYear)}).`);
+    }
+
+    if (rawTitle) {
+        segments.push(ensureSentencePeriod(rawTitle));
+    }
+
+    if (rawJournal) {
+        segments.push(ensureSentencePeriod(rawJournal));
+    }
+
+    if (validLink) {
+        const safeValidLink = escapeHtml(validLink);
+        segments.push(
+            `<a href="${safeValidLink}" target="_blank" rel="noopener noreferrer" class="publication-accordion__entry-link">${safeValidLink}</a>`
+        );
+    }
+
+    return segments.join(' ');
+}
+
 export function renderPublicationEntry(item) {
     const safeId = escapeHtml(item.id ?? '');
     const safeTitle = escapeHtml(item.title);
@@ -182,18 +231,7 @@ export function renderPublicationEntry(item) {
     const safeDoi = escapeHtml(item.doi ?? '');
     const safeLink = escapeHtml(item.link ?? '');
     const safeDescription = escapeHtml(item.description);
-
-    const href = item.link ? escapeHtml(item.link) : '#';
-    const targetAttrs = item.link ? 'target="_blank" rel="noopener noreferrer"' : '';
-
-    let venueHtml = '';
-    if (safeJournal && safeYear) {
-        venueHtml = `${safeJournal} &bull; ${safeYear}`;
-    } else if (safeJournal) {
-        venueHtml = safeJournal;
-    } else if (safeYear) {
-        venueHtml = safeYear;
-    }
+    const citationHtml = formatPublicationCitation(item);
 
     return `
         <li class="publication-accordion__entry editable-item"
@@ -218,17 +256,7 @@ export function renderPublicationEntry(item) {
                     <path d="M15 5l4 4"></path>
                 </svg>
             </button>
-            <h4 class="publication-accordion__entry-title">
-                <a
-                    href="${href}"
-                    ${targetAttrs}
-                    class="publication-accordion__entry-link"
-                >${safeTitle}</a>
-            </h4>
-            <p class="publication-accordion__entry-authors">
-                ${safeAuthor}
-            </p>
-            ${venueHtml ? `<p class="publication-accordion__entry-venue">${venueHtml}</p>` : ''}
+            <p class="publication-accordion__entry-citation">${citationHtml}</p>
         </li>
     `;
 }
@@ -388,6 +416,7 @@ export default {
     resolvePublicationAuthor,
     mapPublicationItem,
     groupPublicationsByYear,
+    formatPublicationCitation,
     renderPublicationEntry,
     renderAccordionItem,
     attachAccordionDelegation,

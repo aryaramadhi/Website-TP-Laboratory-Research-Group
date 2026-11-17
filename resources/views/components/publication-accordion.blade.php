@@ -24,6 +24,25 @@
                 <div class="publication-accordion__content">
                     <ul class="publication-accordion__list">
                         @foreach ($publications as $pub)
+                            @php
+                                $author = trim((string) ($pub->author ?? ''));
+                                $yearVal = trim((string) ($pub->year ?? ''));
+                                $title = trim((string) ($pub->title ?? ''));
+                                $journal = trim((string) ($pub->journal ?? ''));
+                                $rawUrl = trim((string) ($pub->link ?: ($pub->doi ?? '')));
+                                if ($rawUrl !== '' && preg_match('/[\x00-\x1F\x7F<>"\'`\s]/', $rawUrl)) {
+                                    $rawUrl = '';
+                                } elseif ($rawUrl !== '' && preg_match('/^10\.\d{4,9}\/[-._;()\/:A-Za-z0-9]+$/', $rawUrl)) {
+                                    $rawUrl = 'https://doi.org/' . $rawUrl;
+                                }
+                                $parsedScheme = strtolower((string) parse_url($rawUrl, PHP_URL_SCHEME));
+                                $validUrl = ($rawUrl !== '' && in_array($parsedScheme, ['http', 'https'], true) && filter_var($rawUrl, FILTER_VALIDATE_URL))
+                                    ? $rawUrl
+                                    : null;
+                                $ensurePeriod = static fn (string $val): string => $val !== ''
+                                    ? (preg_match('/[.?!]$/', $val) ? $val : $val . '.')
+                                    : '';
+                            @endphp
                             <li class="publication-accordion__entry editable-item"
                                 data-item-id="{{ $pub->id }}"
                                 data-item-type="publication"
@@ -36,21 +55,7 @@
                                 data-item-description="{{ $pub->description }}"
                             >
                                 <x-admin-edit-button modal="edit-publication-modal" label="Edit Publikasi" />
-                                <h4 class="publication-accordion__entry-title">
-                                    <a
-                                        href="{{ $pub->link ?: ($pub->doi ?: '#') }}"
-                                        @if ($pub->link || $pub->doi) target="_blank" rel="noopener noreferrer" @endif
-                                        class="publication-accordion__entry-link"
-                                    >
-                                        {{ $pub->title }}
-                                    </a>
-                                </h4>
-                                <p class="publication-accordion__entry-authors">
-                                    {{ $pub->author }}
-                                </p>
-                                <p class="publication-accordion__entry-venue">
-                                    {{ $pub->journal }} &bull; {{ $pub->year }}
-                                </p>
+                                <p class="publication-accordion__entry-citation">@if ($author !== '' && $yearVal !== ''){{ $author }} ({{ $yearVal }}).@elseif ($author !== ''){{ $ensurePeriod($author) }}@elseif ($yearVal !== '')({{ $yearVal }}).@endif @if ($title !== ''){{ $ensurePeriod($title) }} @endif @if ($journal !== ''){{ $ensurePeriod($journal) }} @endif @if ($validUrl)<a href="{{ $validUrl }}" target="_blank" rel="noopener noreferrer" class="publication-accordion__entry-link">{{ $validUrl }}</a>@endif</p>
                             </li>
                         @endforeach
                     </ul>
