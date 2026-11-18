@@ -22,8 +22,13 @@ class PrestasiPencapaianController extends Controller
 
     public function store(Request $request)
     {
+        if (!$request->has('penulis') && $request->has('author')) {
+            $request->merge(['penulis' => $request->input('author')]);
+        }
+
         $validated = $request->validate([
             'nama_prestasi'      => 'required|string|max:255',
+            'penulis'            => 'required_without:anggota_alumni_id|nullable|string|max:255',
             'penyelenggara'      => 'nullable|string',
             'tingkat'            => 'nullable|string',
             'tahun_diperoleh'    => 'nullable|integer',
@@ -35,7 +40,7 @@ class PrestasiPencapaianController extends Controller
             'gambar_pendukung_1' => 'nullable',
             'supporting_image_2' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_pendukung_2' => 'nullable',
-            'anggota_alumni_id'  => 'required|exists:anggota_alumni,anggota_alumni_id',
+            'anggota_alumni_id'  => 'required_without:penulis|nullable|exists:anggota_alumni,anggota_alumni_id',
             'proyek_id'          => 'nullable|exists:proyek_riset,proyek_id',
         ]);
 
@@ -44,11 +49,12 @@ class PrestasiPencapaianController extends Controller
 
         $data = [
             'nama_prestasi'     => $validated['nama_prestasi'],
+            'penulis'           => isset($validated['penulis']) ? trim((string) $validated['penulis']) : null,
             'penyelenggara'     => $validated['penyelenggara'] ?? null,
             'tingkat'           => $validated['tingkat'] ?? null,
             'tahun_diperoleh'   => $validated['tahun_diperoleh'] ?? null,
             'deskripsi'         => $validated['deskripsi'] ?? null,
-            'anggota_alumni_id' => $validated['anggota_alumni_id'],
+            'anggota_alumni_id' => $validated['anggota_alumni_id'] ?? null,
             'proyek_id'         => $validated['proyek_id'] ?? null,
         ];
 
@@ -86,23 +92,28 @@ class PrestasiPencapaianController extends Controller
     {
         $prestasi = PrestasiPencapaian::findOrFail($id);
 
+        if (!$request->has('penulis') && $request->has('author')) {
+            $request->merge(['penulis' => $request->input('author')]);
+        }
+
         $validated = $request->validate([
-            'nama_prestasi'      => 'sometimes|required|string|max:255',
-            'penyelenggara'      => 'nullable|string',
-            'tingkat'            => 'nullable|string',
-            'tahun_diperoleh'    => 'nullable|integer',
-            'deskripsi'          => 'nullable|string',
-            'image'              => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-            'gambar_utama'       => 'nullable',
-            'dokumentasi_bukti'  => $this->dokumentasiBuktiValidationRule($request),
-            'supporting_image_1' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-            'gambar_pendukung_1' => 'nullable',
+            'nama_prestasi'             => 'sometimes|required|string|max:255',
+            'penulis'                   => 'sometimes|required|string|max:255',
+            'penyelenggara'             => 'nullable|string',
+            'tingkat'                   => 'nullable|string',
+            'tahun_diperoleh'           => 'nullable|integer',
+            'deskripsi'                 => 'nullable|string',
+            'image'                     => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'gambar_utama'              => 'nullable',
+            'dokumentasi_bukti'         => $this->dokumentasiBuktiValidationRule($request),
+            'supporting_image_1'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'gambar_pendukung_1'        => 'nullable',
             'supporting_image_2'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_pendukung_2'        => 'nullable',
             'remove_image'              => 'nullable|in:0,1,true,false',
             'remove_supporting_image_1' => 'nullable|in:0,1,true,false',
             'remove_supporting_image_2' => 'nullable|in:0,1,true,false',
-            'anggota_alumni_id'         => 'sometimes|required|exists:anggota_alumni,anggota_alumni_id',
+            'anggota_alumni_id'         => 'nullable|exists:anggota_alumni,anggota_alumni_id',
             'proyek_id'                 => 'nullable|exists:proyek_riset,proyek_id',
         ]);
 
@@ -110,9 +121,10 @@ class PrestasiPencapaianController extends Controller
         $this->validateSupportingImagePair($request, true, $prestasi);
 
         $data = [];
-        foreach (['nama_prestasi', 'penyelenggara', 'tingkat', 'tahun_diperoleh', 'deskripsi', 'anggota_alumni_id', 'proyek_id'] as $field) {
+        foreach (['nama_prestasi', 'penulis', 'penyelenggara', 'tingkat', 'tahun_diperoleh', 'deskripsi', 'anggota_alumni_id', 'proyek_id'] as $field) {
             if ($request->has($field)) {
-                $data[$field] = $request->input($field);
+                $val = $request->input($field);
+                $data[$field] = $field === 'penulis' && is_string($val) ? trim($val) : $val;
             }
         }
 

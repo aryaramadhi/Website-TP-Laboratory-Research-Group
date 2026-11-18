@@ -651,4 +651,75 @@ class CmsImageUploadAndSortingTest extends TestCase
         Storage::disk('public')->assertExists($sharedPath1);
         Storage::disk('public')->assertExists($sharedPath2);
     }
+
+    public function test_achievement_manual_author_create_update_and_validation(): void
+    {
+        $photoFile = UploadedFile::fake()->image('manual_author.jpg');
+
+        $createRes = $this->postJson('/api/prestasi-pencapaian', [
+            'nama_prestasi' => 'Penghargaan Penulis Manual',
+            'penulis' => 'Dr. Budi Santoso',
+            'tahun_diperoleh' => 2026,
+            'deskripsi' => 'Prestasi dengan nama penulis diketik manual.',
+            'image' => $photoFile,
+        ]);
+
+        $createRes->assertStatus(201);
+        $prestasiId = $createRes->json('data.prestasi_id');
+        $this->assertDatabaseHas('prestasi_pencapaian', [
+            'prestasi_id' => $prestasiId,
+            'penulis' => 'Dr. Budi Santoso',
+            'anggota_alumni_id' => null,
+        ]);
+
+        // Empty penulis without anggota_alumni_id must fail validation with 422 on penulis.
+        $emptyAuthorRes = $this->postJson('/api/prestasi-pencapaian', [
+            'nama_prestasi' => 'Prestasi Tanpa Penulis',
+            'penulis' => '',
+            'tahun_diperoleh' => 2026,
+            'image' => UploadedFile::fake()->image('missing_author.jpg'),
+        ]);
+        $emptyAuthorRes->assertStatus(422);
+        $emptyAuthorRes->assertJsonValidationErrors('penulis');
+
+        // Updating penulis via _method=PUT persists new manual author name and exposes it via API.
+        $updateRes = $this->postJson("/api/prestasi-pencapaian/{$prestasiId}", [
+            '_method' => 'PUT',
+            'penulis' => 'Prof. Siti Aminah',
+        ]);
+        $updateRes->assertStatus(200);
+
+        $this->assertDatabaseHas('prestasi_pencapaian', [
+            'prestasi_id' => $prestasiId,
+            'penulis' => 'Prof. Siti Aminah',
+        ]);
+
+        $listRes = $this->getJson('/api/prestasi-pencapaian');
+        $listRes->assertStatus(200);
+        $firstItem = collect($listRes->json())->firstWhere('prestasi_id', $prestasiId);
+        $this->assertNotNull($firstItem);
+        $this->assertSame('Prof. Siti Aminah', $firstItem['penulis']);
+
+        $showRes = $this->getJson("/api/prestasi-pencapaian/{$prestasiId}");
+        $showRes->assertStatus(200);
+        $showRes->assertJsonPath('penulis', 'Prof. Siti Aminah');
+
+        // Existing alumni records and legacy anggota_alumni_id achievements remain intact.
+        $this->assertDatabaseHas('anggota_alumni', [
+            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
+            'nama_lengkap' => 'Dr. Budi Santoso',
+        ]);
+
+        $legacyRes = $this->postJson('/api/prestasi-pencapaian', [
+            'nama_prestasi' => 'Prestasi Relasi Legacy',
+            'tahun_diperoleh' => 2025,
+            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
+            'image' => UploadedFile::fake()->image('legacy_author.jpg'),
+        ]);
+        $legacyRes->assertStatus(201);
+        $this->assertDatabaseHas('prestasi_pencapaian', [
+            'prestasi_id' => $legacyRes->json('data.prestasi_id'),
+            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
+        ]);
+    }
 }

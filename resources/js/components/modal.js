@@ -157,8 +157,7 @@ export function clearAlumniCache() {
 
 export async function setupAchievementAlumniSelect(modal, forceRefresh = false) {
     if (!modal) return;
-    const selectEl = modal.querySelector('select[data-alumni-select]') ||
-        modal.querySelector('#' + modal.id + '-author');
+    const selectEl = modal.querySelector('select[data-alumni-select]');
     if (!selectEl) return;
 
     const submitBtn = modal.querySelector('.btn-modal-submit');
@@ -470,6 +469,8 @@ export const CMS_FIELD_MAPPINGS = {
     },
     achievement: {
         nama_prestasi: 'title',
+        penulis: 'author',
+        author: 'author',
         anggota_alumni_id: 'author',
         tahun_diperoleh: 'date',
         deskripsi: 'content',
@@ -611,9 +612,8 @@ export function buildPublicationPayload(form, isEdit = false) {
 
 export function buildAchievementPayload(form, isEdit = false) {
     const title = form?.querySelector('[name="title"]')?.value?.trim() || '';
-    const rawAuthor = form?.querySelector('[name="anggota_alumni_id"]')?.value?.trim() ||
-        form?.querySelector('[name="author"]')?.value?.trim() || '';
-    const alumniId = rawAuthor && !isNaN(parseInt(rawAuthor, 10)) ? parseInt(rawAuthor, 10) : null;
+    const authorInput = form?.querySelector('[name="author"]') || form?.querySelector('[name="penulis"]');
+    const alumniSelect = form?.querySelector('[name="anggota_alumni_id"]');
 
     const rawDate = form?.querySelector('[name="date"]')?.value?.trim() || '';
     let parsedYear = null;
@@ -628,12 +628,18 @@ export function buildAchievementPayload(form, isEdit = false) {
 
     const formData = new FormData();
     formData.append('nama_prestasi', title);
+    if (authorInput) {
+        formData.append('penulis', (authorInput.value || '').trim());
+    } else if (alumniSelect) {
+        const rawAlumniId = alumniSelect.value?.trim() || '';
+        const alumniId = rawAlumniId && !isNaN(parseInt(rawAlumniId, 10)) ? parseInt(rawAlumniId, 10) : null;
+        if (alumniId !== null) {
+            formData.append('anggota_alumni_id', String(alumniId));
+        }
+    }
     formData.append('deskripsi', content);
     if (parsedYear !== null) {
         formData.append('tahun_diperoleh', String(parsedYear));
-    }
-    if (alumniId !== null) {
-        formData.append('anggota_alumni_id', String(alumniId));
     }
 
     if (isEdit) {
@@ -1213,16 +1219,6 @@ export function openModal(modalId) {
             resetModalFileInputs(modal, false);
         }
         clearModalErrors(modal);
-        const authorSelect = modal.querySelector('#achievement-modal-author');
-        if (authorSelect) {
-            delete authorSelect.dataset.pendingSelectedId;
-            delete authorSelect.dataset.pendingSelectedName;
-        }
-        setupAchievementAlumniSelect(modal);
-    }
-
-    if (modalId === 'edit-achievement-modal') {
-        setupAchievementAlumniSelect(modal);
     }
 
     if (modalId === 'publication-modal') {
@@ -1414,13 +1410,17 @@ export function populateEditModal(modalId, item, editBtn) {
         if (contentEl) contentEl.value = data.content || data.description || '';
 
         if (authorEl) {
-            const targetAuthorId = data.authorId || (data.author && !isNaN(data.author) ? data.author : '');
-            authorEl.dataset.pendingSelectedId = targetAuthorId || '';
-            authorEl.dataset.pendingSelectedName = data.author || '';
-            if (targetAuthorId && authorEl.querySelector(`option[value="${targetAuthorId}"]`)) {
-                authorEl.value = String(targetAuthorId);
+            if (authorEl.tagName === 'SELECT') {
+                const targetAuthorId = data.authorId || (data.author && !isNaN(data.author) ? data.author : '');
+                authorEl.dataset.pendingSelectedId = targetAuthorId || '';
+                authorEl.dataset.pendingSelectedName = data.author || '';
+                if (targetAuthorId && authorEl.querySelector(`option[value="${targetAuthorId}"]`)) {
+                    authorEl.value = String(targetAuthorId);
+                } else {
+                    authorEl.value = '';
+                }
             } else {
-                authorEl.value = '';
+                authorEl.value = data.author || '';
             }
         }
 

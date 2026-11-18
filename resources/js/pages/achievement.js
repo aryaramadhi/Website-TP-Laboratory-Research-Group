@@ -80,17 +80,17 @@ export function resolveAchievementAuthor(raw) {
         return NEUTRAL_AUTHOR;
     }
 
+    const directAuthor = raw.penulis ?? raw.author ?? raw.penerima ?? null;
+    if (typeof directAuthor === 'string' && directAuthor.trim()) {
+        return directAuthor.trim();
+    }
+
     const alumni = raw.anggotaAlumni || raw.anggota_alumni;
     if (alumni && typeof alumni === 'object') {
         const memberName = alumni.nama_lengkap || alumni.nama;
         if (typeof memberName === 'string' && memberName.trim()) {
             return memberName.trim();
         }
-    }
-
-    const directAuthor = raw.author ?? raw.penulis ?? raw.penerima ?? null;
-    if (typeof directAuthor === 'string' && directAuthor.trim()) {
-        return directAuthor.trim();
     }
 
     return NEUTRAL_AUTHOR;
