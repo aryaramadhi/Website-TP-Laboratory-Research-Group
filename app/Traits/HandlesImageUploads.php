@@ -2,15 +2,55 @@
 
 namespace App\Traits;
 
+use App\Models\BeritaIsu;
+use App\Models\PrestasiPencapaian;
+use App\Models\ProyekRiset;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 trait HandlesImageUploads
 {
+    /**
+     * Memformat path relatif menjadi URL yang dapat diakses publik (/storage/... atau /images/...).
+     */
+    public static function formatAssetUrl(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $trimmed = trim($path);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if (str_starts_with($trimmed, 'http://') || str_starts_with($trimmed, 'https://')) {
+            return $trimmed;
+        }
+
+        if (str_starts_with($trimmed, '/')) {
+            return $trimmed;
+        }
+
+        if (str_starts_with($trimmed, 'images/') || str_starts_with($trimmed, 'storage/')) {
+            return '/' . $trimmed;
+        }
+
+        return '/storage/' . $trimmed;
+    }
+
+    /**
+     * Upload an image or document file to the public disk and return its relative path.
+     */
+    public function uploadCmsFile(?UploadedFile $file, string $directory): ?string
+    {
+        return $this->handleImageUpload($file, $directory);
+    }
+
     /**
      * Upload an image file to the public disk and return its relative path.
      */
@@ -27,12 +67,20 @@ trait HandlesImageUploads
     }
 
     /**
+     * Menghapus file fisik dari disk public jika tidak lagi direferensikan.
+     */
+    public function deleteCmsFile(?string $path, ?Model $excludeModel = null): void
+    {
+        $this->deleteStoredImage($path, $excludeModel);
+    }
+
+    /**
      * Delete a stored image after verifying no remaining DB record references it.
      */
-    protected function deleteStoredImage(?string $path): void
+    protected function deleteStoredImage(?string $path, ?Model $excludeModel = null): void
     {
         $cleanPath = $this->normalizeStoredPath($path);
-        if (!$cleanPath || $this->isImagePathInUse($cleanPath)) {
+        if (!$cleanPath || $this->isPathReferencedElsewhere($cleanPath, $excludeModel)) {
             return;
         }
 
@@ -46,10 +94,10 @@ trait HandlesImageUploads
      *
      * @param array<int, ?string> $paths
      */
-    protected function deleteStoredImages(array $paths): void
+    protected function deleteStoredImages(array $paths, ?Model $excludeModel = null): void
     {
         foreach (array_unique(array_filter($paths)) as $path) {
-            $this->deleteStoredImage($path);
+            $this->deleteStoredImage($path, $excludeModel);
         }
     }
 
@@ -59,7 +107,7 @@ trait HandlesImageUploads
             return null;
         }
 
-        $cleanPath = ltrim($path, '/');
+        $cleanPath = ltrim(trim($path), '/');
 
         // Never delete template/seeder assets or external URLs.
         if (str_starts_with($cleanPath, 'images/') ||
@@ -75,23 +123,57 @@ trait HandlesImageUploads
         return $cleanPath !== '' ? $cleanPath : null;
     }
 
-    protected function isImagePathInUse(string $cleanPath): bool
+    /**
+     * Mengecek apakah path file masih direferensikan oleh record lain di database.
+     */
+    public function isPathReferencedElsewhere(string $path, ?Model $excludeModel = null): bool
     {
-        $candidates = [$cleanPath, 'storage/' . $cleanPath];
-        $tableColumns = [
-            'proyek_riset' => ['dokumentasi_visual_utama', 'gambar_pendukung_1', 'gambar_pendukung_2'],
-            'berita_isu' => ['gambar_pendukung', 'gambar_pendukung_1', 'gambar_pendukung_2'],
-            'prestasi_pencapaian' => ['gambar_utama', 'dokumentasi_bukti', 'gambar_pendukung_1', 'gambar_pendukung_2'],
+        return $this->isImagePathInUse($path, $excludeModel);
+    }
+
+    protected function isImagePathInUse(string $cleanPath, ?Model $excludeModel = null): bool
+    {
+        $normalized = ltrim(preg_replace('/^(\/?storage\/)/', '', trim($cleanPath)), '/');
+        if ($normalized === '') {
+            return false;
+        }
+
+        $candidates = [$normalized, 'storage/' . $normalized];
+
+        $checks = [
+            [
+                'model' => ProyekRiset::class,
+                'pk' => 'proyek_id',
+                'columns' => ['dokumentasi_visual_utama', 'gambar_pendukung_1', 'gambar_pendukung_2'],
+            ],
+            [
+                'model' => BeritaIsu::class,
+                'pk' => 'berita_id',
+                'columns' => ['gambar_pendukung', 'gambar_pendukung_1', 'gambar_pendukung_2'],
+            ],
+            [
+                'model' => PrestasiPencapaian::class,
+                'pk' => 'prestasi_id',
+                'columns' => ['gambar_utama', 'dokumentasi_bukti', 'gambar_pendukung_1', 'gambar_pendukung_2'],
+            ],
         ];
 
-        foreach ($tableColumns as $table => $columns) {
-            $exists = DB::table($table)->where(function ($query) use ($columns, $candidates) {
-                foreach ($columns as $column) {
-                    $query->orWhereIn($column, $candidates);
-                }
-            })->exists();
+        foreach ($checks as $check) {
+            $modelClass = $check['model'];
+            $pk = $check['pk'];
+            $columns = $check['columns'];
 
-            if ($exists) {
+            $query = $modelClass::query()->where(function ($q) use ($columns, $candidates) {
+                foreach ($columns as $column) {
+                    $q->orWhereIn($column, $candidates);
+                }
+            });
+
+            if ($excludeModel instanceof $modelClass && isset($excludeModel->{$pk})) {
+                $query->where($pk, '!=', $excludeModel->{$pk});
+            }
+
+            if ($query->exists()) {
                 return true;
             }
         }
@@ -129,6 +211,7 @@ trait HandlesImageUploads
         }
         if ($allowProofFallback) {
             if ($request->hasFile('dokumentasi_bukti') ||
+                $request->hasFile('document') ||
                 ($request->filled('dokumentasi_bukti') && $this->isValidPathString($request->input('dokumentasi_bukti')))) {
                 return true;
             }
@@ -161,55 +244,68 @@ trait HandlesImageUploads
             || ($request->filled($legacyKey) && $this->isValidPathString($request->input($legacyKey)));
     }
 
-    protected function validateSupportingImagePair(Request $request, bool $isUpdate = false, ?object $record = null): void
-    {
-        $pairMsg = 'Gambar pendukung harus diisi berpasangan. Pilih kedua gambar atau kosongkan keduanya.';
-        $removeMsg = 'Gambar pendukung harus dihapus berpasangan.';
+    /**
+     * Memvalidasi pasangan gambar pendukung harus lengkap berpasangan atau kosong berpasangan.
+     */
+    protected function validateSupportingImagePair(
+        Request $request,
+        bool|Model|null $isUpdateOrModel = false,
+        object|string|null $recordOrField1 = null,
+        string $field2 = 'supporting_image_2',
+        string $col1 = 'gambar_pendukung_1',
+        string $col2 = 'gambar_pendukung_2'
+    ): void {
+        $field1 = 'supporting_image_1';
+        if (is_bool($isUpdateOrModel)) {
+            $isUpdate = $isUpdateOrModel;
+            $record = is_object($recordOrField1) ? $recordOrField1 : null;
+        } else {
+            $record = $isUpdateOrModel;
+            $isUpdate = $record !== null;
+            if (is_string($recordOrField1) && $recordOrField1 !== '') {
+                $field1 = $recordOrField1;
+            }
+        }
 
-        $hasSupp1 = $this->hasSupportingImageInput($request, 'supporting_image_1', 'gambar_pendukung_1');
-        $hasSupp2 = $this->hasSupportingImageInput($request, 'supporting_image_2', 'gambar_pendukung_2');
+        $pairMsg = 'Gambar pendukung harus diisi berpasangan. Pilih kedua gambar atau kosongkan keduanya.';
+
+        $hasSupp1 = $this->hasSupportingImageInput($request, $field1, $col1);
+        $hasSupp2 = $this->hasSupportingImageInput($request, $field2, $col2);
 
         if (!$isUpdate) {
             if ($hasSupp1 xor $hasSupp2) {
                 throw ValidationException::withMessages([
-                    'supporting_image_1' => [$pairMsg],
-                    'supporting_image_2' => [$pairMsg],
+                    $field1 => [$pairMsg],
+                    $field2 => [$pairMsg],
                 ]);
             }
             return;
         }
 
-        $remove1 = $request->boolean('remove_supporting_image_1');
-        $remove2 = $request->boolean('remove_supporting_image_2');
-
-        if ($remove1 xor $remove2) {
-            throw ValidationException::withMessages([
-                'supporting_image_1' => [$removeMsg],
-                'supporting_image_2' => [$removeMsg],
-            ]);
-        }
+        $remove1 = $request->boolean('remove_' . $field1);
+        $remove2 = $request->boolean('remove_' . $field2);
 
         if (($remove1 || $remove2) && ($hasSupp1 || $hasSupp2)) {
             throw ValidationException::withMessages([
-                'supporting_image_1' => [$pairMsg],
-                'supporting_image_2' => [$pairMsg],
+                $field1 => [$pairMsg],
+                $field2 => [$pairMsg],
             ]);
         }
 
         if ($hasSupp1 xor $hasSupp2) {
             throw ValidationException::withMessages([
-                'supporting_image_1' => [$pairMsg],
-                'supporting_image_2' => [$pairMsg],
+                $field1 => [$pairMsg],
+                $field2 => [$pairMsg],
             ]);
         }
 
         if ($record && !$hasSupp1 && !$hasSupp2 && !$remove1 && !$remove2) {
-            $hasExisting1 = !empty($record->gambar_pendukung_1);
-            $hasExisting2 = !empty($record->gambar_pendukung_2);
+            $hasExisting1 = !empty($record->{$col1});
+            $hasExisting2 = !empty($record->{$col2});
             if ($hasExisting1 xor $hasExisting2) {
                 throw ValidationException::withMessages([
-                    'supporting_image_1' => [$pairMsg],
-                    'supporting_image_2' => [$pairMsg],
+                    $field1 => [$pairMsg],
+                    $field2 => [$pairMsg],
                 ]);
             }
         }
@@ -263,7 +359,7 @@ trait HandlesImageUploads
                     }
                 }
             }
-        } elseif ($request->boolean('remove_supporting_image_1') && $request->boolean('remove_supporting_image_2')) {
+        } elseif ($request->boolean('remove_supporting_image_1') || $request->boolean('remove_supporting_image_2')) {
             if ($record->gambar_pendukung_1) {
                 $pathsToDelete[] = $record->gambar_pendukung_1;
             }

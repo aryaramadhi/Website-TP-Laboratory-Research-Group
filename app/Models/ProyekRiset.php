@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\HandlesImageUploads;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
 
 class ProyekRiset extends Model
 {
@@ -15,6 +15,7 @@ class ProyekRiset extends Model
 
     protected $fillable = [
         'judul_penelitian_simulasi',
+        'penulis',
         'deskripsi_singkat',
         'dokumentasi_visual_utama',
         'gambar_pendukung_1',
@@ -33,52 +34,22 @@ class ProyekRiset extends Model
 
     public function getImageUrlAttribute(): ?string
     {
-        return $this->formatImageUrl($this->dokumentasi_visual_utama);
+        return HandlesImageUploads::formatAssetUrl($this->dokumentasi_visual_utama);
     }
 
     public function getSupportingImage1UrlAttribute(): ?string
     {
-        return $this->formatImageUrl($this->gambar_pendukung_1);
+        return HandlesImageUploads::formatAssetUrl($this->gambar_pendukung_1);
     }
 
     public function getSupportingImage2UrlAttribute(): ?string
     {
-        return $this->formatImageUrl($this->gambar_pendukung_2);
-    }
-
-    protected function formatImageUrl(?string $path): ?string
-    {
-        if (!$path) {
-            return null;
-        }
-
-        $trimmed = trim($path);
-        if (str_starts_with($trimmed, 'http://') || str_starts_with($trimmed, 'https://')) {
-            return $trimmed;
-        }
-
-        $clean = ltrim($trimmed, '/');
-        if (str_starts_with($clean, 'images/')) {
-            return '/' . $clean;
-        }
-
-        if (str_starts_with($clean, 'storage/')) {
-            return '/' . $clean;
-        }
-
-        return '/storage/' . $clean;
+        return HandlesImageUploads::formatAssetUrl($this->gambar_pendukung_2);
     }
 
     public function admin()
     {
         return $this->belongsTo(Admin::class, 'admin_id');
-    }
-
-    public function anggotaAlumni()
-    {
-        return $this->belongsToMany(AnggotaAlumni::class, 'jnc_proyek_anggota', 'proyek_id', 'anggota_alumni_id')
-                    ->withPivot('peran_spesifik')
-                    ->withTimestamps();
     }
 
     public function publikasiHibah()

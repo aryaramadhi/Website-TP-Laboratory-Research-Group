@@ -12,9 +12,9 @@ class PrestasiPencapaianController extends Controller
 
     public function index()
     {
-        $prestasi = PrestasiPencapaian::with(['anggotaAlumni', 'proyekRiset'])
-            ->orderBy('created_at', 'desc')
-            ->orderBy('prestasi_id', 'desc')
+        $prestasi = PrestasiPencapaian::with('proyekRiset')
+            ->orderByDesc('created_at')
+            ->orderByDesc('prestasi_id')
             ->get();
 
         return response()->json($prestasi);
@@ -22,52 +22,59 @@ class PrestasiPencapaianController extends Controller
 
     public function store(Request $request)
     {
+        $adminId = $request->user()?->admin_id;
+        if (!$adminId) {
+            return response()->json([
+                'message' => 'Akses ditolak. Identitas admin tidak valid.'
+            ], 403);
+        }
+
         if (!$request->has('penulis') && $request->has('author')) {
             $request->merge(['penulis' => $request->input('author')]);
         }
 
         $validated = $request->validate([
             'nama_prestasi'      => 'required|string|max:255',
-            'penulis'            => 'required_without:anggota_alumni_id|nullable|string|max:255',
-            'penyelenggara'      => 'nullable|string',
-            'tingkat'            => 'nullable|string',
+            'penulis'            => 'nullable|string|max:255',
+            'penyelenggara'      => 'nullable|string|max:255',
+            'tingkat'            => 'nullable|string|max:100',
             'tahun_diperoleh'    => 'nullable|integer',
             'deskripsi'          => 'nullable|string',
             'image'              => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_utama'       => 'nullable',
             'dokumentasi_bukti'  => $this->dokumentasiBuktiValidationRule($request),
+            'document'           => 'nullable|file|mimes:pdf,jpeg,png,jpg,webp|max:5120',
             'supporting_image_1' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_pendukung_1' => 'nullable',
             'supporting_image_2' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_pendukung_2' => 'nullable',
-            'anggota_alumni_id'  => 'required_without:penulis|nullable|exists:anggota_alumni,anggota_alumni_id',
             'proyek_id'          => 'nullable|exists:proyek_riset,proyek_id',
         ]);
 
         $this->ensureMainImagePresentOnStore($request, 'gambar_utama', true);
         $this->validateSupportingImagePair($request, false);
 
+        $penulis = isset($validated['penulis']) ? trim((string) $validated['penulis']) : '';
         $data = [
-            'nama_prestasi'     => $validated['nama_prestasi'],
-            'penulis'           => isset($validated['penulis']) ? trim((string) $validated['penulis']) : null,
-            'penyelenggara'     => $validated['penyelenggara'] ?? null,
-            'tingkat'           => $validated['tingkat'] ?? null,
-            'tahun_diperoleh'   => $validated['tahun_diperoleh'] ?? null,
-            'deskripsi'         => $validated['deskripsi'] ?? null,
-            'anggota_alumni_id' => $validated['anggota_alumni_id'] ?? null,
-            'proyek_id'         => $validated['proyek_id'] ?? null,
+            'nama_prestasi'   => $validated['nama_prestasi'],
+            'penulis'         => $penulis !== '' ? $penulis : null,
+            'penyelenggara'   => $validated['penyelenggara'] ?? null,
+            'tingkat'         => $validated['tingkat'] ?? null,
+            'tahun_diperoleh' => $validated['tahun_diperoleh'] ?? null,
+            'deskripsi'       => $validated['deskripsi'] ?? null,
+            'proyek_id'       => $validated['proyek_id'] ?? null,
         ];
 
         $mainFile = $request->file('image') ?? $request->file('gambar_utama');
         if ($mainFile) {
-            $data['gambar_utama'] = $this->handleImageUpload($mainFile, 'achievements');
+            $data['gambar_utama'] = $this->uploadCmsFile($mainFile, 'achievements');
         } elseif ($request->filled('gambar_utama') && $this->isValidPathString($request->input('gambar_utama'))) {
             $data['gambar_utama'] = $request->input('gambar_utama');
         }
 
-        if ($request->hasFile('dokumentasi_bukti')) {
-            $proofFile = $request->file('dokumentasi_bukti');
-            $data['dokumentasi_bukti'] = $proofFile->store('achievements/documents', 'public');
+        $proofFile = $request->file('dokumentasi_bukti') ?? $request->file('document');
+        if ($proofFile) {
+            $data['dokumentasi_bukti'] = $this->uploadCmsFile($proofFile, 'achievements/documents');
         } elseif ($request->filled('dokumentasi_bukti') && $this->isValidPathString($request->input('dokumentasi_bukti'))) {
             $data['dokumentasi_bukti'] = $request->input('dokumentasi_bukti');
         }
@@ -78,18 +85,25 @@ class PrestasiPencapaianController extends Controller
 
         return response()->json([
             'message' => 'Prestasi/Pencapaian berhasil ditambahkan',
-            'data' => $prestasi->fresh(['anggotaAlumni', 'proyekRiset'])
+            'data'    => $prestasi->fresh('proyekRiset')
         ], 201);
     }
 
     public function show($id)
     {
-        $prestasi = PrestasiPencapaian::with(['anggotaAlumni', 'proyekRiset'])->findOrFail($id);
+        $prestasi = PrestasiPencapaian::with('proyekRiset')->findOrFail($id);
         return response()->json($prestasi);
     }
 
     public function update(Request $request, $id)
     {
+        $adminId = $request->user()?->admin_id;
+        if (!$adminId) {
+            return response()->json([
+                'message' => 'Akses ditolak. Identitas admin tidak valid.'
+            ], 403);
+        }
+
         $prestasi = PrestasiPencapaian::findOrFail($id);
 
         if (!$request->has('penulis') && $request->has('author')) {
@@ -98,14 +112,15 @@ class PrestasiPencapaianController extends Controller
 
         $validated = $request->validate([
             'nama_prestasi'             => 'sometimes|required|string|max:255',
-            'penulis'                   => 'sometimes|required|string|max:255',
-            'penyelenggara'             => 'nullable|string',
-            'tingkat'                   => 'nullable|string',
+            'penulis'                   => 'nullable|string|max:255',
+            'penyelenggara'             => 'nullable|string|max:255',
+            'tingkat'                   => 'nullable|string|max:100',
             'tahun_diperoleh'           => 'nullable|integer',
             'deskripsi'                 => 'nullable|string',
             'image'                     => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_utama'              => 'nullable',
             'dokumentasi_bukti'         => $this->dokumentasiBuktiValidationRule($request),
+            'document'                  => 'nullable|file|mimes:pdf,jpeg,png,jpg,webp|max:5120',
             'supporting_image_1'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_pendukung_1'        => 'nullable',
             'supporting_image_2'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
@@ -113,7 +128,6 @@ class PrestasiPencapaianController extends Controller
             'remove_image'              => 'nullable|in:0,1,true,false',
             'remove_supporting_image_1' => 'nullable|in:0,1,true,false',
             'remove_supporting_image_2' => 'nullable|in:0,1,true,false',
-            'anggota_alumni_id'         => 'nullable|exists:anggota_alumni,anggota_alumni_id',
             'proyek_id'                 => 'nullable|exists:proyek_riset,proyek_id',
         ]);
 
@@ -121,10 +135,15 @@ class PrestasiPencapaianController extends Controller
         $this->validateSupportingImagePair($request, true, $prestasi);
 
         $data = [];
-        foreach (['nama_prestasi', 'penulis', 'penyelenggara', 'tingkat', 'tahun_diperoleh', 'deskripsi', 'anggota_alumni_id', 'proyek_id'] as $field) {
+        foreach (['nama_prestasi', 'penulis', 'penyelenggara', 'tingkat', 'tahun_diperoleh', 'deskripsi', 'proyek_id'] as $field) {
             if ($request->has($field)) {
-                $val = $request->input($field);
-                $data[$field] = $field === 'penulis' && is_string($val) ? trim($val) : $val;
+                $val = $validated[$field] ?? $request->input($field);
+                if ($field === 'penulis') {
+                    $trimmed = is_string($val) ? trim($val) : '';
+                    $data[$field] = $trimmed !== '' ? $trimmed : null;
+                } else {
+                    $data[$field] = $val;
+                }
             }
         }
 
@@ -133,7 +152,7 @@ class PrestasiPencapaianController extends Controller
         $mainFile = $request->file('image') ?? $request->file('gambar_utama');
         if ($mainFile) {
             $oldPath = $prestasi->gambar_utama;
-            $newPath = $this->handleImageUpload($mainFile, 'achievements');
+            $newPath = $this->uploadCmsFile($mainFile, 'achievements');
             if ($newPath) {
                 $data['gambar_utama'] = $newPath;
                 if ($oldPath && $oldPath !== $newPath) {
@@ -144,10 +163,10 @@ class PrestasiPencapaianController extends Controller
             $data['gambar_utama'] = $request->input('gambar_utama');
         }
 
-        if ($request->hasFile('dokumentasi_bukti')) {
-            $proofFile = $request->file('dokumentasi_bukti');
+        $proofFile = $request->file('dokumentasi_bukti') ?? $request->file('document');
+        if ($proofFile) {
             $oldPath = $prestasi->dokumentasi_bukti;
-            $newPath = $proofFile->store('achievements/documents', 'public');
+            $newPath = $this->uploadCmsFile($proofFile, 'achievements/documents');
             if ($newPath) {
                 $data['dokumentasi_bukti'] = $newPath;
                 if ($oldPath && $oldPath !== $newPath) {
@@ -161,11 +180,11 @@ class PrestasiPencapaianController extends Controller
         $this->applySupportingImagesOnUpdate($request, $prestasi, 'achievements/gallery', $data, $pathsToDelete);
 
         $prestasi->update($data);
-        $this->deleteStoredImages($pathsToDelete);
+        $this->deleteStoredImages($pathsToDelete, $prestasi);
 
         return response()->json([
             'message' => 'Prestasi/Pencapaian berhasil diperbarui',
-            'data' => $prestasi->fresh(['anggotaAlumni', 'proyekRiset'])
+            'data'    => $prestasi->fresh('proyekRiset')
         ]);
     }
 
@@ -189,7 +208,7 @@ class PrestasiPencapaianController extends Controller
     protected function dokumentasiBuktiValidationRule(Request $request): string|array
     {
         if ($request->hasFile('dokumentasi_bukti')) {
-            return 'nullable|file|mimes:pdf,jpeg,png,jpg,webp|max:2048';
+            return 'nullable|file|mimes:pdf,jpeg,png,jpg,webp|max:5120';
         }
 
         return [

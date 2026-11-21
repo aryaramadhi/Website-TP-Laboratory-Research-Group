@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HandlesImageUploads;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -23,7 +24,6 @@ class PrestasiPencapaian extends Model
         'dokumentasi_bukti',
         'gambar_pendukung_1',
         'gambar_pendukung_2',
-        'anggota_alumni_id',
         'proyek_id',
     ];
 
@@ -37,12 +37,12 @@ class PrestasiPencapaian extends Model
     public function getImageUrlAttribute(): ?string
     {
         if ($this->gambar_utama) {
-            return $this->formatUrl($this->gambar_utama);
+            return HandlesImageUploads::formatAssetUrl($this->gambar_utama);
         }
 
         // Backward compatibility fallback: if dokumentasi_bukti is an image (not PDF), use it
         if ($this->dokumentasi_bukti && !$this->isPdf($this->dokumentasi_bukti)) {
-            return $this->formatUrl($this->dokumentasi_bukti);
+            return HandlesImageUploads::formatAssetUrl($this->dokumentasi_bukti);
         }
 
         return null;
@@ -51,7 +51,7 @@ class PrestasiPencapaian extends Model
     public function getDocumentUrlAttribute(): ?string
     {
         if ($this->dokumentasi_bukti && $this->isPdf($this->dokumentasi_bukti)) {
-            return $this->formatUrl($this->dokumentasi_bukti);
+            return HandlesImageUploads::formatAssetUrl($this->dokumentasi_bukti);
         }
 
         return null;
@@ -59,47 +59,21 @@ class PrestasiPencapaian extends Model
 
     public function getSupportingImage1UrlAttribute(): ?string
     {
-        return $this->formatUrl($this->gambar_pendukung_1);
+        return HandlesImageUploads::formatAssetUrl($this->gambar_pendukung_1);
     }
 
     public function getSupportingImage2UrlAttribute(): ?string
     {
-        return $this->formatUrl($this->gambar_pendukung_2);
+        return HandlesImageUploads::formatAssetUrl($this->gambar_pendukung_2);
     }
 
     protected function isPdf(?string $path): bool
     {
-        if (!$path) return false;
+        if (!$path) {
+            return false;
+        }
         $clean = strtolower(trim(explode('?', $path)[0]));
         return str_ends_with($clean, '.pdf');
-    }
-
-    protected function formatUrl(?string $path): ?string
-    {
-        if (!$path) {
-            return null;
-        }
-
-        $trimmed = trim($path);
-        if (str_starts_with($trimmed, 'http://') || str_starts_with($trimmed, 'https://')) {
-            return $trimmed;
-        }
-
-        $clean = ltrim($trimmed, '/');
-        if (str_starts_with($clean, 'images/')) {
-            return '/' . $clean;
-        }
-
-        if (str_starts_with($clean, 'storage/')) {
-            return '/' . $clean;
-        }
-
-        return '/storage/' . $clean;
-    }
-
-    public function anggotaAlumni()
-    {
-        return $this->belongsTo(AnggotaAlumni::class, 'anggota_alumni_id');
     }
 
     public function proyekRiset()

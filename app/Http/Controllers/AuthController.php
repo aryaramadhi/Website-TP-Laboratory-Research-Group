@@ -23,6 +23,16 @@ class AuthController extends Controller
             ], 401);
         }
 
+        if (!$admin->status_akses) {
+            return response()->json([
+                'message' => 'Akun admin dinonaktifkan atau tidak memiliki izin akses.'
+            ], 403);
+        }
+
+        $admin->update([
+            'last_login' => now(),
+        ]);
+
         $token = $admin->createToken('admin-token')->plainTextToken;
 
         return response()->json([
