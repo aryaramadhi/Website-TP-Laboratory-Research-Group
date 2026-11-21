@@ -24,7 +24,6 @@ class PrestasiPencapaian extends Model
         'dokumentasi_bukti',
         'gambar_pendukung_1',
         'gambar_pendukung_2',
-        'anggota_alumni_id',
         'proyek_id',
     ];
 
@@ -53,11 +52,6 @@ class PrestasiPencapaian extends Model
     public function getSupportingImage2UrlAttribute(): ?string
     {
         return HandlesImageUploads::formatAssetUrl($this->gambar_pendukung_2);
-    }
-
-    public function anggotaAlumni()
-    {
-        return $this->belongsTo(AnggotaAlumni::class, 'anggota_alumni_id');
     }
 
     public function proyekRiset()

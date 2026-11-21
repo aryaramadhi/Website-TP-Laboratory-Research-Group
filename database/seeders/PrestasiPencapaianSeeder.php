@@ -20,7 +20,6 @@ class PrestasiPencapaianSeeder extends Seeder
             'dokumentasi_bukti'  => 'sertifikat_juara1.pdf',
             'gambar_pendukung_1' => null,
             'gambar_pendukung_2' => null,
-            'anggota_alumni_id'  => 1,
             'proyek_id'          => 1,
         ]);
     }

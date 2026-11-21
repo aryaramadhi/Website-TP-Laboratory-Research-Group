@@ -9,7 +9,7 @@ class PublikasiHibahController extends Controller
 {
     public function index()
     {
-        $publikasi = PublikasiHibah::with(['admin', 'proyekRiset', 'penulis'])
+        $publikasi = PublikasiHibah::with(['admin', 'proyekRiset'])
             ->orderByDesc('tahun')
             ->orderByDesc('created_at')
             ->get();
@@ -44,13 +44,13 @@ class PublikasiHibahController extends Controller
 
         return response()->json([
             'message' => 'Publikasi/Hibah berhasil ditambahkan',
-            'data'    => $publikasi->fresh(['admin', 'proyekRiset', 'penulis'])
+            'data'    => $publikasi->fresh(['admin', 'proyekRiset'])
         ], 201);
     }
 
     public function show($id)
     {
-        $publikasi = PublikasiHibah::with(['admin', 'proyekRiset', 'penulis'])->findOrFail($id);
+        $publikasi = PublikasiHibah::with(['admin', 'proyekRiset'])->findOrFail($id);
         return response()->json($publikasi);
     }
 
@@ -84,7 +84,7 @@ class PublikasiHibahController extends Controller
 
         return response()->json([
             'message' => 'Publikasi/Hibah berhasil diperbarui',
-            'data'    => $publikasi->fresh(['admin', 'proyekRiset', 'penulis'])
+            'data'    => $publikasi->fresh(['admin', 'proyekRiset'])
         ]);
     }
 

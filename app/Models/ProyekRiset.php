@@ -51,13 +51,6 @@ class ProyekRiset extends Model
         return $this->belongsTo(Admin::class, 'admin_id');
     }
 
-    public function anggotaAlumni()
-    {
-        return $this->belongsToMany(AnggotaAlumni::class, 'jnc_proyek_anggota', 'proyek_id', 'anggota_alumni_id')
-                    ->withPivot('peran_spesifik')
-                    ->withTimestamps();
-    }
-
     public function publikasiHibah()
     {
         return $this->hasMany(PublikasiHibah::class, 'proyek_id');

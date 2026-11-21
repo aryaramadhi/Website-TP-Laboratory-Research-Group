@@ -35,7 +35,7 @@ class AdminController extends Controller
 
     public function show($id)
     {
-        $admin = Admin::with(['proyekRiset', 'anggotaAlumni', 'publikasiHibah', 'beritaIsu'])->findOrFail($id);
+        $admin = Admin::with(['proyekRiset', 'publikasiHibah', 'beritaIsu'])->findOrFail($id);
         return response()->json($admin);
     }
 

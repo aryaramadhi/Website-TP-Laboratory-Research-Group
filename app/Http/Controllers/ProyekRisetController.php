@@ -84,7 +84,7 @@ class ProyekRisetController extends Controller
 
     public function show(string $id)
     {
-        $proyek = ProyekRiset::with(['admin', 'anggotaAlumni', 'publikasiHibah', 'prestasiPencapaian'])->find($id);
+        $proyek = ProyekRiset::with(['admin', 'publikasiHibah', 'prestasiPencapaian'])->find($id);
 
         if (!$proyek) {
             return response()->json(['message' => 'Proyek riset tidak ditemukan'], 404);

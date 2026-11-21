@@ -33,10 +33,4 @@ class PublikasiHibah extends Model
         return $this->belongsTo(ProyekRiset::class, 'proyek_id');
     }
 
-    public function penulis()
-    {
-        return $this->belongsToMany(AnggotaAlumni::class, 'jnc_anggota_kontribusi_publikasi', 'publikasi_id', 'anggota_alumni_id')
-                    ->withPivot('urutan_penulis')
-                    ->withTimestamps();
-    }
 }

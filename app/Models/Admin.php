@@ -36,11 +36,6 @@ class Admin extends Authenticatable
         return $this->hasMany(ProyekRiset::class, 'admin_id');
     }
 
-    public function anggotaAlumni()
-    {
-        return $this->hasMany(AnggotaAlumni::class, 'admin_id');
-    }
-
     public function publikasiHibah()
     {
         return $this->hasMany(PublikasiHibah::class, 'admin_id');

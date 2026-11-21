@@ -13,7 +13,7 @@ class PrestasiPencapaianController extends Controller
 
     public function index()
     {
-        $prestasi = PrestasiPencapaian::with(['anggotaAlumni', 'proyekRiset'])
+        $prestasi = PrestasiPencapaian::with('proyekRiset')
             ->orderByDesc('created_at')
             ->orderByDesc('prestasi_id')
             ->get();
@@ -31,7 +31,6 @@ class PrestasiPencapaianController extends Controller
             'tahun_diperoleh'    => 'nullable|integer',
             'deskripsi'          => 'nullable|string',
             'dokumentasi_bukti'  => 'nullable|string',
-            'anggota_alumni_id'  => 'nullable|exists:anggota_alumni,anggota_alumni_id',
             'proyek_id'          => 'nullable|exists:proyek_riset,proyek_id',
             'image'              => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_utama'       => 'nullable',
@@ -80,13 +79,13 @@ class PrestasiPencapaianController extends Controller
 
         return response()->json([
             'message' => 'Prestasi/Pencapaian berhasil ditambahkan',
-            'data'    => $prestasi->fresh(['anggotaAlumni', 'proyekRiset'])
+            'data'    => $prestasi->fresh('proyekRiset')
         ], 201);
     }
 
     public function show($id)
     {
-        $prestasi = PrestasiPencapaian::with(['anggotaAlumni', 'proyekRiset'])->findOrFail($id);
+        $prestasi = PrestasiPencapaian::with('proyekRiset')->findOrFail($id);
         return response()->json($prestasi);
     }
 
@@ -102,7 +101,6 @@ class PrestasiPencapaianController extends Controller
             'tahun_diperoleh'    => 'nullable|integer',
             'deskripsi'          => 'nullable|string',
             'dokumentasi_bukti'  => 'nullable|string',
-            'anggota_alumni_id'  => 'nullable|exists:anggota_alumni,anggota_alumni_id',
             'proyek_id'          => 'nullable|exists:proyek_riset,proyek_id',
             'image'              => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_utama'       => 'nullable',
@@ -165,7 +163,7 @@ class PrestasiPencapaianController extends Controller
 
         return response()->json([
             'message' => 'Prestasi/Pencapaian berhasil diperbarui',
-            'data'    => $prestasi->fresh(['anggotaAlumni', 'proyekRiset'])
+            'data'    => $prestasi->fresh('proyekRiset')
         ]);
     }
 
