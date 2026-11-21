@@ -4,7 +4,7 @@
 
 <x-modal :id="$id" class="confirm-modal">
     <div class="modal__header">
-        <h2 class="modal__title">Konfirmasi Hapus</h2>
+        <h2 class="modal__title" id="{{ $id }}-modal-title">Konfirmasi Hapus</h2>
         <button type="button" class="modal__close" aria-label="Tutup" data-modal-close>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <line x1="18" y1="6" x2="6" y2="18"></line>

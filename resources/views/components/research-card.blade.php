@@ -28,7 +28,7 @@
     data-item-id="{{ $id }}"
     data-item-type="research"
     data-item-title="{{ $title }}"
-    data-item-author="{{ $author ?? 'Dr. Eng. Tika Erna Putri, S.Si., M.Sc.' }}"
+    data-item-author="{{ $author ?? '' }}"
     data-item-date="{{ $date ?? '' }}"
     data-item-status="{{ $status }}"
     data-item-description="{{ $content ?? $excerpt }}"

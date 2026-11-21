@@ -4,7 +4,7 @@
     $hasSsrData = !empty($achievement);
     $itemTitle = $achievement?->title ?? 'Detail Prestasi & Pencapaian';
     $itemDate = $achievement?->date ? $achievement->date->translatedFormat('d F Y') : '';
-    $itemAuthor = $achievement?->penulis ?? $achievement?->author ?? $achievement?->anggotaAlumni?->nama_lengkap ?? 'TP Laboratory Research Group';
+    $itemAuthor = $achievement?->penulis ?? $achievement?->author ?? 'TP Laboratory Research Group';
     $rawProof = $achievement?->dokumentasi_bukti ?? $achievement?->main_image ?? null;
     $isPdf = $rawProof && str_ends_with(strtolower($rawProof), '.pdf');
     $itemImage = ($rawProof && !$isPdf) ? $rawProof : 'images/achievements/detail-featured.jpg';
@@ -58,7 +58,7 @@
             data-item-id="{{ $achievement?->id }}"
             data-item-type="achievement"
             data-item-title="{{ $itemTitle }}"
-            data-item-author="{{ $itemAuthor }}"
+            data-item-author="{{ $achievement?->penulis ?? $achievement?->author ?? '' }}"
             data-item-date="{{ $achievement?->date?->format('Y-m-d') ?? '' }}"
             data-item-content="{{ $achievement?->content ?? $itemExcerpt }}"
             data-item-description="{{ $achievement?->content ?? $itemExcerpt }}"

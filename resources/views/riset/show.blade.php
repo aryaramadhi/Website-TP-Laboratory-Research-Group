@@ -4,7 +4,7 @@
     $hasSsrData = !empty($research);
     $itemTitle = $research?->title ?? 'Detail Riset';
     $itemDate = $research?->start_date ? $research->start_date->translatedFormat('d F Y') : '';
-    $itemAuthor = $research?->author ?? 'TP Laboratory Research Group';
+    $itemAuthor = $research?->penulis ?? $research?->author ?? 'TP Laboratory Research Group';
     $itemImage = $research?->main_image ?? 'images/research/detail-featured.jpg';
     $itemStatus = $research?->status ?? 'Sedang Berjalan';
     $itemExcerpt = $research?->excerpt ?? '';
@@ -57,7 +57,7 @@
             data-item-id="{{ $research?->id }}"
             data-item-type="research"
             data-item-title="{{ $itemTitle }}"
-            data-item-author="{{ $itemAuthor }}"
+            data-item-author="{{ $research?->penulis ?? $research?->author ?? '' }}"
             data-item-date="{{ $research?->start_date?->format('Y-m-d') ?? '' }}"
             data-item-status="{{ $itemStatus }}"
             data-item-description="{{ $research?->content ?? $itemExcerpt }}"

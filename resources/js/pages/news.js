@@ -78,14 +78,7 @@ export function resolveNewsAuthor(raw) {
         return NEUTRAL_AUTHOR;
     }
 
-    if (raw.admin && typeof raw.admin === 'object') {
-        const adminName = raw.admin.nama_lengkap || raw.admin.name || raw.admin.nama;
-        if (typeof adminName === 'string' && adminName.trim()) {
-            return adminName.trim();
-        }
-    }
-
-    const directAuthor = raw.author ?? raw.penulis ?? null;
+    const directAuthor = raw.penulis ?? raw.author ?? null;
     if (typeof directAuthor === 'string' && directAuthor.trim()) {
         return directAuthor.trim();
     }
@@ -96,12 +89,15 @@ export function resolveNewsAuthor(raw) {
 export function formatIndonesianDate(dateString) {
     if (!dateString) return '';
     try {
-        const date = new Date(dateString);
+        const trimmed = String(dateString).trim();
+        if (!trimmed) return '';
+        const date = new Date(trimmed);
         if (isNaN(date.getTime())) return String(dateString);
         return new Intl.DateTimeFormat('id-ID', {
             day: 'numeric',
             month: 'long',
             year: 'numeric',
+            timeZone: 'UTC',
         }).format(date);
     } catch {
         return String(dateString);
@@ -133,6 +129,8 @@ export function mapNewsItem(raw) {
     const imageUrl = isDoc
         ? '/images/news/news-1.jpg'
         : sanitizeImageUrl(rawImage, '/images/news/news-1.jpg');
+    const directAuthor = raw.penulis ?? raw.author ?? null;
+    const rawAuthor = typeof directAuthor === 'string' ? directAuthor.trim() : '';
     const author = resolveNewsAuthor(raw);
 
     const rawSupp1 = raw.supporting_image_1_url ?? raw.gambar_pendukung_1 ?? raw.supporting_image_1 ?? null;
@@ -153,6 +151,7 @@ export function mapNewsItem(raw) {
         supportingImage2,
         isDocument: isDoc,
         author,
+        rawAuthor,
         href: id ? `/berita/${id}` : '#',
         raw,
     };
@@ -165,7 +164,7 @@ export function renderNewsCard(item, index) {
     const safeId = escapeHtml(item.id ?? '');
     const safeTitle = escapeHtml(item.title);
     const safeExcerpt = escapeHtml(item.excerpt);
-    const safeAuthor = escapeHtml(item.author);
+    const safeAuthor = escapeHtml(item.rawAuthor ?? '');
     const safeDate = escapeHtml(item.date || '');
     const safeCategory = escapeHtml(item.category || '');
     const safeHref = escapeHtml(item.href || '#');
@@ -500,7 +499,7 @@ export async function loadNewsDetail(detailContainer) {
             if (cardEl) {
                 cardEl.dataset.itemId = String(item.id || '');
                 cardEl.dataset.itemTitle = item.title || '';
-                cardEl.dataset.itemAuthor = item.author || '';
+                cardEl.dataset.itemAuthor = item.rawAuthor ?? '';
                 cardEl.dataset.itemDate = item.date || '';
                 cardEl.dataset.itemCategory = item.category || '';
                 cardEl.dataset.itemContent = item.content || item.excerpt || '';

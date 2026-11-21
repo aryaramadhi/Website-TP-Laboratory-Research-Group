@@ -110,6 +110,12 @@
     transform: scale(1.08);
 }
 
+.navbar__toggle:focus-visible,
+.navbar__user-btn:focus-visible {
+    outline: 2px solid var(--color-primary-100);
+    outline-offset: 3px;
+}
+
 .navbar__user-icon {
     width: 24px;
     height: 24px;

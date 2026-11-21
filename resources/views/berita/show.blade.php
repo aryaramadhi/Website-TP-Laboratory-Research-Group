@@ -4,7 +4,7 @@
     $hasSsrData = !empty($news);
     $itemTitle = $news?->title ?? 'Detail Berita';
     $itemDate = $news?->release_date ? $news->release_date->translatedFormat('d F Y') : '';
-    $itemAuthor = $news?->author ?? 'TP Laboratory Research Group';
+    $itemAuthor = $news?->penulis ?? $news?->author ?? 'TP Laboratory Research Group';
     $itemImage = $news?->main_image ?? 'images/news/detail-featured.jpg';
     $itemExcerpt = $news?->excerpt ?? '';
 @endphp
@@ -56,7 +56,7 @@
             data-item-id="{{ $news?->id }}"
             data-item-type="news"
             data-item-title="{{ $itemTitle }}"
-            data-item-author="{{ $itemAuthor }}"
+            data-item-author="{{ $news?->penulis ?? $news?->author ?? '' }}"
             data-item-date="{{ $news?->release_date?->format('Y-m-d') ?? '' }}"
             data-item-content="{{ $news?->content ?? $itemExcerpt }}"
             data-item-description="{{ $news?->content ?? $itemExcerpt }}"

@@ -66,36 +66,9 @@ export function resolvePublicationAuthor(raw) {
         return NEUTRAL_AUTHOR;
     }
 
-    // 1. Check eager-loaded penulis relation (many-to-many with AnggotaAlumni)
-    if (Array.isArray(raw.penulis) && raw.penulis.length > 0) {
-        const sorted = [...raw.penulis].sort((a, b) => {
-            const orderA = a?.pivot?.urutan_penulis ?? 999;
-            const orderB = b?.pivot?.urutan_penulis ?? 999;
-            return orderA - orderB;
-        });
-
-        const names = sorted
-            .map((p) => (p && typeof p === 'object' ? p.nama_lengkap || p.nama : null))
-            .filter((name) => typeof name === 'string' && name.trim().length > 0)
-            .map((name) => name.trim());
-
-        if (names.length > 0) {
-            return names.join(', ');
-        }
-    }
-
-    // 2. Check direct author / penulis string
-    const directAuthor = raw.author ?? raw.penulis ?? null;
+    const directAuthor = raw.penulis ?? raw.author ?? null;
     if (typeof directAuthor === 'string' && directAuthor.trim()) {
         return directAuthor.trim();
-    }
-
-    // 3. Check admin relation
-    if (raw.admin && typeof raw.admin === 'object') {
-        const adminName = raw.admin.nama_lengkap || raw.admin.name;
-        if (typeof adminName === 'string' && adminName.trim()) {
-            return adminName.trim();
-        }
     }
 
     return NEUTRAL_AUTHOR;
@@ -123,6 +96,8 @@ export function mapPublicationItem(raw) {
     const link = sanitizeExternalLink(rawLink);
     const doi = link || (typeof rawLink === 'string' && !/[\x00-\x1F\x7F<>"'`\s:]/.test(rawLink) ? rawLink.trim() : '');
     const jenis = raw.jenis ?? 'Publikasi Jurnal';
+    const directAuthor = raw.penulis ?? raw.author ?? null;
+    const rawAuthor = typeof directAuthor === 'string' ? directAuthor.trim() : '';
     const author = resolvePublicationAuthor(raw);
 
     return {
@@ -135,6 +110,7 @@ export function mapPublicationItem(raw) {
         doi,
         jenis,
         author,
+        rawAuthor,
         raw,
     };
 }
@@ -225,7 +201,7 @@ export function formatPublicationCitation(item) {
 export function renderPublicationEntry(item) {
     const safeId = escapeHtml(item.id ?? '');
     const safeTitle = escapeHtml(item.title);
-    const safeAuthor = escapeHtml(item.author);
+    const safeAuthor = escapeHtml(item.rawAuthor ?? '');
     const safeJournal = escapeHtml(item.journal);
     const safeYear = escapeHtml(item.year ?? '');
     const safeDoi = escapeHtml(item.doi ?? '');
@@ -332,6 +308,7 @@ export async function loadPublicationList(pageContainer) {
     const errorMsgEl = pageContainer.querySelector('[data-publication-error-message]');
     const retryBtn = pageContainer.querySelector('[data-publication-retry]');
     const accordionEl = pageContainer.querySelector('[data-publication-accordion]');
+    const fallbackAccordion = accordionEl || pageContainer.querySelector('[data-accordion]');
 
     function showState(stateName, message = '') {
         if (loadingEl) loadingEl.style.display = stateName === 'loading' ? 'flex' : 'none';
@@ -346,8 +323,12 @@ export async function loadPublicationList(pageContainer) {
         }
     }
 
-    if (accordionEl) {
-        attachAccordionDelegation(accordionEl);
+    if (fallbackAccordion) {
+        attachAccordionDelegation(fallbackAccordion);
+    }
+
+    if (!accordionEl) {
+        return;
     }
 
     async function fetchData() {

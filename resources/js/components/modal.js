@@ -8,11 +8,9 @@ import {
     hasAuthToken,
     setAdminUser,
     removeAdminUser,
-    getAdminUser,
     onUnauthorized,
 } from '../api/auth.js';
 import { ApiError, extractData } from '../api/client.js';
-import { getAlumniList } from '../api/alumni.js';
 import { createResearch, updateResearch, deleteResearch } from '../api/research.js';
 import { createNews, updateNews, deleteNews } from '../api/news.js';
 import { createPublication, updatePublication, deletePublication } from '../api/publication.js';
@@ -121,128 +119,6 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-}
-
-let cachedAlumniList = null;
-let alumniFetchPromise = null;
-
-export async function fetchAlumniList(forceRefresh = false) {
-    if (cachedAlumniList && !forceRefresh) {
-        return cachedAlumniList;
-    }
-    if (alumniFetchPromise && !forceRefresh) {
-        return alumniFetchPromise;
-    }
-    alumniFetchPromise = (async () => {
-        try {
-            const response = await getAlumniList();
-            const data = extractData(response);
-            const list = Array.isArray(data) ? data : [];
-            cachedAlumniList = list;
-            return list;
-        } catch (err) {
-            cachedAlumniList = null;
-            throw err;
-        } finally {
-            alumniFetchPromise = null;
-        }
-    })();
-    return alumniFetchPromise;
-}
-
-export function clearAlumniCache() {
-    cachedAlumniList = null;
-    alumniFetchPromise = null;
-}
-
-export async function setupAchievementAlumniSelect(modal, forceRefresh = false) {
-    if (!modal) return;
-    const selectEl = modal.querySelector('select[data-alumni-select]');
-    if (!selectEl) return;
-
-    const submitBtn = modal.querySelector('.btn-modal-submit');
-    const errorEl = modal.querySelector('#' + modal.id + '-author-error');
-
-    selectEl.disabled = true;
-    selectEl.innerHTML = '<option value="" disabled selected>Memuat daftar anggota/alumni...</option>';
-    if (errorEl) {
-        errorEl.style.display = 'none';
-        errorEl.setAttribute('hidden', '');
-    }
-
-    try {
-        const list = await fetchAlumniList(forceRefresh);
-
-        if (!Array.isArray(list) || list.length === 0) {
-            selectEl.innerHTML = '<option value="" disabled selected>Tidak ada anggota/alumni tersedia</option>';
-            selectEl.disabled = true;
-            if (submitBtn) {
-                submitBtn.disabled = true;
-            }
-            if (errorEl) {
-                errorEl.style.display = 'flex';
-                errorEl.removeAttribute('hidden');
-                errorEl.innerHTML = `
-                    <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <span class="form-error-text">Daftar anggota/alumni kosong. Tambahkan anggota alumni terlebih dahulu.</span>
-                `;
-            }
-            return;
-        }
-
-        let optionsHtml = '<option value="" disabled selected>Pilih Anggota/Alumni...</option>';
-        for (const item of list) {
-            const id = item.anggota_alumni_id ?? item.id;
-            const name = item.nama_lengkap ?? item.nama ?? 'Anggota';
-            optionsHtml += `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`;
-        }
-        selectEl.innerHTML = optionsHtml;
-        selectEl.disabled = false;
-        if (submitBtn) {
-            submitBtn.disabled = false;
-        }
-        if (errorEl) {
-            errorEl.style.display = 'none';
-            errorEl.setAttribute('hidden', '');
-        }
-
-        const pendingId = selectEl.dataset.pendingSelectedId;
-        const pendingName = selectEl.dataset.pendingSelectedName;
-        if (pendingId && selectEl.querySelector(`option[value="${pendingId}"]`)) {
-            selectEl.value = String(pendingId);
-        } else if (pendingName) {
-            const match = list.find(a => (a.nama_lengkap || a.nama || '').trim().toLowerCase() === pendingName.trim().toLowerCase());
-            if (match) {
-                selectEl.value = String(match.anggota_alumni_id ?? match.id);
-            } else {
-                selectEl.value = '';
-            }
-        } else {
-            selectEl.value = '';
-        }
-    } catch (err) {
-        selectEl.innerHTML = '<option value="" disabled selected>Gagal memuat anggota/alumni</option>';
-        selectEl.disabled = true;
-        if (submitBtn) {
-            submitBtn.disabled = true;
-        }
-        if (errorEl) {
-            errorEl.style.display = 'flex';
-            errorEl.removeAttribute('hidden');
-            errorEl.innerHTML = `
-                <svg class="form-error-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                <span class="form-error-text">Gagal memuat daftar anggota. <button type="button" class="form-retry-link" data-retry-alumni style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-weight:600;padding:0;margin-left:4px;">Coba lagi</button></span>
-            `;
-        }
-    }
 }
 
 export function showFieldError(input, errorContainerId, message) {
@@ -440,6 +316,8 @@ export function showModalGeneralError(modal, modalId, message) {
 export const CMS_FIELD_MAPPINGS = {
     research: {
         judul_penelitian_simulasi: 'title',
+        penulis: 'author',
+        author: 'author',
         deskripsi_singkat: 'description',
         tanggal_mulai: 'date',
         status_proyek: 'status',
@@ -452,6 +330,8 @@ export const CMS_FIELD_MAPPINGS = {
     },
     news: {
         judul_berita: 'title',
+        penulis: 'author',
+        author: 'author',
         isi_artikel_ringkas: 'content',
         tanggal_rilis: 'date',
         image: 'image',
@@ -463,6 +343,8 @@ export const CMS_FIELD_MAPPINGS = {
     },
     publication: {
         judul_karya_hibah: 'title',
+        penulis: 'author',
+        author: 'author',
         nama_jurnal_skema: 'journal',
         tahun: 'year',
         tautan_eksternal: 'doi',
@@ -471,7 +353,6 @@ export const CMS_FIELD_MAPPINGS = {
         nama_prestasi: 'title',
         penulis: 'author',
         author: 'author',
-        anggota_alumni_id: 'author',
         tahun_diperoleh: 'date',
         deskripsi: 'content',
         image: 'image',
@@ -520,16 +401,16 @@ function appendCmsImagePayloadFields(formData, form, isEdit) {
 }
 
 export function buildResearchPayload(form, isEdit = false) {
-    const admin = getAdminUser();
-    const adminId = admin?.admin_id ?? admin?.id;
-
     const title = form?.querySelector('[name="title"]')?.value?.trim() || '';
+    const authorInput = form?.querySelector('[name="author"]') || form?.querySelector('[name="penulis"]');
+    const penulis = (authorInput?.value || '').trim();
     const description = form?.querySelector('[name="description"]')?.value?.trim() || '';
     const date = form?.querySelector('[name="date"]')?.value?.trim() || '';
     const status = form?.querySelector('[name="status"]')?.value?.trim() || 'Sedang Berjalan';
 
     const formData = new FormData();
     formData.append('judul_penelitian_simulasi', title);
+    formData.append('penulis', penulis);
     formData.append('deskripsi_singkat', description);
     formData.append('tanggal_mulai', date);
     formData.append('status_proyek', status);
@@ -540,25 +421,21 @@ export function buildResearchPayload(form, isEdit = false) {
         formData.append('_method', 'PUT');
     }
 
-    if (adminId !== undefined && adminId !== null && adminId !== '') {
-        formData.append('admin_id', String(adminId));
-    }
-
     appendCmsImagePayloadFields(formData, form, isEdit);
 
     return formData;
 }
 
 export function buildNewsPayload(form, isEdit = false) {
-    const admin = getAdminUser();
-    const adminId = admin?.admin_id ?? admin?.id;
-
     const title = form?.querySelector('[name="title"]')?.value?.trim() || '';
+    const authorInput = form?.querySelector('[name="author"]') || form?.querySelector('[name="penulis"]');
+    const penulis = (authorInput?.value || '').trim();
     const content = form?.querySelector('[name="content"]')?.value?.trim() || '';
     const rawDate = form?.querySelector('[name="date"]')?.value?.trim() || '';
 
     const formData = new FormData();
     formData.append('judul_berita', title);
+    formData.append('penulis', penulis);
     formData.append('isi_artikel_ringkas', content);
     if (rawDate) {
         formData.append('tanggal_rilis', rawDate);
@@ -570,20 +447,15 @@ export function buildNewsPayload(form, isEdit = false) {
         formData.append('_method', 'PUT');
     }
 
-    if (adminId !== undefined && adminId !== null && adminId !== '') {
-        formData.append('admin_id', String(adminId));
-    }
-
     appendCmsImagePayloadFields(formData, form, isEdit);
 
     return formData;
 }
 
 export function buildPublicationPayload(form, isEdit = false) {
-    const admin = getAdminUser();
-    const adminId = admin?.admin_id ?? admin?.id;
-
     const title = form?.querySelector('[name="title"]')?.value?.trim() || '';
+    const authorInput = form?.querySelector('[name="author"]') || form?.querySelector('[name="penulis"]');
+    const penulis = (authorInput?.value || '').trim();
     const journal = form?.querySelector('[name="journal"]')?.value?.trim() || null;
     const rawYear = form?.querySelector('[name="year"]')?.value?.trim() || '';
     const parsedYear = rawYear && !isNaN(parseInt(rawYear, 10)) ? parseInt(rawYear, 10) : null;
@@ -592,6 +464,7 @@ export function buildPublicationPayload(form, isEdit = false) {
 
     const payload = {
         judul_karya_hibah: title,
+        penulis,
         nama_jurnal_skema: journal,
         tahun: parsedYear,
         tautan_eksternal: doi,
@@ -603,17 +476,12 @@ export function buildPublicationPayload(form, isEdit = false) {
         payload.proyek_id = null;
     }
 
-    if (adminId !== undefined && adminId !== null && adminId !== '') {
-        payload.admin_id = Number(adminId);
-    }
-
     return payload;
 }
 
 export function buildAchievementPayload(form, isEdit = false) {
     const title = form?.querySelector('[name="title"]')?.value?.trim() || '';
     const authorInput = form?.querySelector('[name="author"]') || form?.querySelector('[name="penulis"]');
-    const alumniSelect = form?.querySelector('[name="anggota_alumni_id"]');
 
     const rawDate = form?.querySelector('[name="date"]')?.value?.trim() || '';
     let parsedYear = null;
@@ -630,12 +498,6 @@ export function buildAchievementPayload(form, isEdit = false) {
     formData.append('nama_prestasi', title);
     if (authorInput) {
         formData.append('penulis', (authorInput.value || '').trim());
-    } else if (alumniSelect) {
-        const rawAlumniId = alumniSelect.value?.trim() || '';
-        const alumniId = rawAlumniId && !isNaN(parseInt(rawAlumniId, 10)) ? parseInt(rawAlumniId, 10) : null;
-        if (alumniId !== null) {
-            formData.append('anggota_alumni_id', String(alumniId));
-        }
     }
     formData.append('deskripsi', content);
     if (parsedYear !== null) {
@@ -664,11 +526,8 @@ export function handleCmsValidationErrors(form, modal, modalId, resourceType, er
 
         if (frontendFieldName) {
             const inputField = form?.querySelector(`[name="${frontendFieldName}"]`) ||
-                (frontendFieldName === 'author' ? form?.querySelector('[name="anggota_alumni_id"]') : null) ||
-                (frontendFieldName === 'anggota_alumni_id' ? form?.querySelector('[name="author"]') : null);
-            const errorContainerId = (frontendFieldName === 'anggota_alumni_id' || frontendFieldName === 'author')
-                ? `${modalId}-author-error`
-                : `${modalId}-${frontendFieldName}-error`;
+                (frontendFieldName === 'author' ? form?.querySelector('[name="penulis"]') : null);
+            const errorContainerId = `${modalId}-${frontendFieldName}-error`;
 
             if (inputField) {
                 showFieldError(inputField, errorContainerId, message);
@@ -1095,6 +954,109 @@ export function handleFileInputChange(fileInput) {
     }
 }
 
+const REQUIRED_FIELD_MESSAGES = {
+    title: 'Judul wajib diisi.',
+    author: 'Nama penulis wajib diisi.',
+    penulis: 'Nama penulis wajib diisi.',
+    date: 'Tanggal wajib diisi.',
+    status: 'Status wajib dipilih.',
+    description: 'Deskripsi wajib diisi.',
+    content: 'Isi konten wajib diisi.',
+    journal: 'Nama jurnal wajib diisi.',
+    year: 'Tahun wajib diisi.',
+};
+
+export function isModalRequestInFlight(modal) {
+    if (!modal || typeof modal.querySelectorAll !== 'function') return false;
+    const buttons = modal.querySelectorAll('.btn-modal-submit, [data-confirm-delete]');
+    for (const btn of buttons) {
+        if (btn && btn.disabled) {
+            return true;
+        }
+    }
+    return false;
+}
+
+export function validateAuthorInput(form, modalId) {
+    const authorInput = form?.querySelector('input[name="author"], input[name="penulis"]');
+    if (!authorInput) return true;
+
+    const value = (authorInput.value || '').trim();
+    if (!value) {
+        showFieldError(authorInput, `${modalId}-author-error`, 'Nama penulis wajib diisi.');
+        authorInput.focus?.();
+        return false;
+    }
+
+    return true;
+}
+
+export function validatePublicationDoiInput(form, modalId, resourceType) {
+    if (resourceType !== 'publication') return true;
+    const doiInput = form?.querySelector('input[name="doi"]');
+    if (!doiInput) return true;
+
+    const raw = (doiInput.value || '').trim();
+    if (!raw) return true;
+
+    const isBareDoi = /^10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+$/.test(raw);
+    let isValidHttpUrl = false;
+    if (/^https?:\/\//i.test(raw)) {
+        try {
+            const parsed = new URL(raw);
+            isValidHttpUrl = (parsed.protocol === 'http:' || parsed.protocol === 'https:') && Boolean(parsed.hostname);
+        } catch {
+            isValidHttpUrl = false;
+        }
+    }
+
+    if (!isBareDoi && !isValidHttpUrl) {
+        showFieldError(
+            doiInput,
+            `${modalId}-doi-error`,
+            'Format DOI / tautan tidak valid. Gunakan URL lengkap (https://...) atau kode DOI.'
+        );
+        doiInput.focus?.();
+        return false;
+    }
+
+    return true;
+}
+
+export function validateRequiredFormFields(form, modalId) {
+    if (!form || typeof form.querySelectorAll !== 'function') return true;
+
+    const requiredFields = form.querySelectorAll('input[required], textarea[required], select[required]');
+    let isValid = true;
+    let firstInvalid = null;
+
+    requiredFields.forEach((field) => {
+        const type = String(field.type || '').toLowerCase();
+        if (type === 'file' || type === 'hidden') return;
+
+        const value = typeof field.value === 'string'
+            ? field.value.trim()
+            : String(field.value ?? '').trim();
+
+        if (!value) {
+            const errorKey = field.name === 'penulis' ? 'author' : field.name;
+            const errorContainerId = `${modalId}-${errorKey}-error`;
+            const message = REQUIRED_FIELD_MESSAGES[field.name] || 'Bidang ini wajib diisi.';
+            showFieldError(field, errorContainerId, message);
+            if (!firstInvalid) {
+                firstInvalid = field;
+            }
+            isValid = false;
+        }
+    });
+
+    if (firstInvalid) {
+        firstInvalid.focus?.();
+    }
+
+    return isValid;
+}
+
 export function validateMainImageSelection(form, modalId, resourceType, isEdit) {
     if (isEdit || !['research', 'news', 'achievement'].includes(resourceType)) {
         return true;
@@ -1304,8 +1266,9 @@ export function populateEditModal(modalId, item, editBtn) {
         data = {
             id: targetItem.dataset.itemId || data.id || '',
             title: targetItem.dataset.itemTitle || data.title || '',
-            author: targetItem.dataset.itemAuthor || data.author || '',
-            authorId: targetItem.dataset.itemAuthorId || data.anggota_alumni_id || data.author_id || data.authorId || '',
+            author: Object.prototype.hasOwnProperty.call(targetItem.dataset, 'itemAuthor')
+                ? (targetItem.dataset.itemAuthor || '')
+                : (data.penulis ?? data.author ?? ''),
             date: targetItem.dataset.itemDate || data.date || '',
             status: targetItem.dataset.itemStatus || data.status || '',
             description: targetItem.dataset.itemDescription || targetItem.dataset.itemContent || data.description || '',
@@ -1410,18 +1373,7 @@ export function populateEditModal(modalId, item, editBtn) {
         if (contentEl) contentEl.value = data.content || data.description || '';
 
         if (authorEl) {
-            if (authorEl.tagName === 'SELECT') {
-                const targetAuthorId = data.authorId || (data.author && !isNaN(data.author) ? data.author : '');
-                authorEl.dataset.pendingSelectedId = targetAuthorId || '';
-                authorEl.dataset.pendingSelectedName = data.author || '';
-                if (targetAuthorId && authorEl.querySelector(`option[value="${targetAuthorId}"]`)) {
-                    authorEl.value = String(targetAuthorId);
-                } else {
-                    authorEl.value = '';
-                }
-            } else {
-                authorEl.value = data.author || '';
-            }
+            authorEl.value = data.author || '';
         }
 
         resetModalFileInputs(modal, true);
@@ -1460,7 +1412,9 @@ export function initModal() {
         if (deleteTrigger) {
             e.preventDefault();
             e.stopPropagation();
-            activeEditModal = deleteTrigger.closest('[data-modal]');
+            const parentModal = deleteTrigger.closest('[data-modal]');
+            if (isModalRequestInFlight(parentModal)) return;
+            activeEditModal = parentModal;
             openModal('delete-confirm-modal');
             return;
         }
@@ -1791,18 +1745,6 @@ export function initModal() {
             }
         }
 
-        // Alumni retry button
-        const retryAlumniBtn = e.target.closest('[data-retry-alumni]');
-        if (retryAlumniBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            const modal = retryAlumniBtn.closest('[data-modal]');
-            if (modal) {
-                setupAchievementAlumniSelect(modal, true);
-            }
-            return;
-        }
-
         const clearFileBtn = e.target.closest('[data-clear-file]');
         if (clearFileBtn) {
             e.preventDefault();
@@ -1831,6 +1773,7 @@ export function initModal() {
             const modal = closeBtn.closest('[data-modal]');
             if (modal) {
                 e.preventDefault();
+                if (isModalRequestInFlight(modal)) return;
                 closeModal(modal);
             }
         }
@@ -1839,7 +1782,9 @@ export function initModal() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             document.querySelectorAll('[data-modal]:not([hidden])').forEach((m) => {
-                closeModal(m);
+                if (!isModalRequestInFlight(m)) {
+                    closeModal(m);
+                }
             });
             closeDropdown();
         }
@@ -2007,6 +1952,8 @@ export function initModal() {
         const originalBtnText = submitBtn ? submitBtn.textContent : 'Simpan';
         const isEdit = modalId === `edit-${resourceType}-modal`;
         if (
+            !validateRequiredFormFields(form, modalId) ||
+            !validatePublicationDoiInput(form, modalId, resourceType) ||
             !validateMainImageSelection(form, modalId, resourceType, isEdit) ||
             !validateSupportingImagesSelection(form, modalId, resourceType, isEdit)
         ) {
@@ -2036,14 +1983,6 @@ export function initModal() {
             payload = buildPublicationPayload(form, isEdit);
         } else if (resourceType === 'achievement') {
             payload = buildAchievementPayload(form, isEdit);
-        }
-
-        if (resourceType !== 'achievement') {
-            const checkAdminId = payload instanceof FormData ? payload.get('admin_id') : payload?.admin_id;
-            if (!checkAdminId || isNaN(Number(checkAdminId))) {
-                showModalGeneralError(modal, modalId, 'Sesi admin tidak valid atau ID admin tidak ditemukan. Silakan masuk kembali.');
-                return;
-            }
         }
 
         if (submitBtn) {

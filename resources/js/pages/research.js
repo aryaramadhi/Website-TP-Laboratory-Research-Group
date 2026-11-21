@@ -74,24 +74,7 @@ export function resolveAuthor(raw) {
         return NEUTRAL_AUTHOR;
     }
 
-    if (Array.isArray(raw.anggota_alumni) && raw.anggota_alumni.length > 0) {
-        const names = raw.anggota_alumni
-            .map((item) => (item && typeof item === 'object' ? item.nama_lengkap || item.nama : null))
-            .filter((name) => typeof name === 'string' && name.trim().length > 0)
-            .map((name) => name.trim());
-        if (names.length > 0) {
-            return names.join(', ');
-        }
-    }
-
-    if (raw.admin && typeof raw.admin === 'object') {
-        const adminName = raw.admin.nama_lengkap || raw.admin.name || raw.admin.nama;
-        if (typeof adminName === 'string' && adminName.trim()) {
-            return adminName.trim();
-        }
-    }
-
-    const directAuthor = raw.author ?? raw.peneliti ?? raw.penulis ?? null;
+    const directAuthor = raw.penulis ?? raw.author ?? raw.peneliti ?? null;
     if (typeof directAuthor === 'string' && directAuthor.trim()) {
         return directAuthor.trim();
     }
@@ -102,12 +85,15 @@ export function resolveAuthor(raw) {
 export function formatIndonesianDate(dateString) {
     if (!dateString) return '';
     try {
-        const date = new Date(dateString);
+        const trimmed = String(dateString).trim();
+        if (!trimmed) return '';
+        const date = new Date(trimmed);
         if (isNaN(date.getTime())) return String(dateString);
         return new Intl.DateTimeFormat('id-ID', {
             day: 'numeric',
             month: 'long',
             year: 'numeric',
+            timeZone: 'UTC',
         }).format(date);
     } catch {
         return String(dateString);
@@ -137,6 +123,8 @@ export function mapResearchItem(raw) {
 
     const rawImage = raw.dokumentasi_visual_utama ?? raw.main_image ?? raw.image ?? null;
     const imageUrl = sanitizeImageUrl(rawImage, '/images/research/research-1.jpg');
+    const directAuthor = raw.penulis ?? raw.author ?? raw.peneliti ?? null;
+    const rawAuthor = typeof directAuthor === 'string' ? directAuthor.trim() : '';
     const author = resolveAuthor(raw);
 
     const rawSupp1 = raw.supporting_image_1_url ?? raw.gambar_pendukung_1 ?? raw.supporting_image_1 ?? null;
@@ -157,6 +145,7 @@ export function mapResearchItem(raw) {
         supportingImage1,
         supportingImage2,
         author,
+        rawAuthor,
         href: id ? `/riset/${id}` : '#',
         raw,
     };
@@ -173,7 +162,7 @@ export function renderResearchCard(item, index) {
     const safeId = escapeHtml(item.id ?? '');
     const safeTitle = escapeHtml(item.title);
     const safeExcerpt = escapeHtml(item.excerpt);
-    const safeAuthor = escapeHtml(item.author);
+    const safeAuthor = escapeHtml(item.rawAuthor ?? '');
     const safeStatus = escapeHtml(item.status);
     const safeDate = escapeHtml(item.date || '');
     const safeHref = escapeHtml(item.href || '#');
@@ -507,7 +496,7 @@ export async function loadResearchDetail(detailContainer) {
             if (cardEl) {
                 cardEl.dataset.itemId = String(item.id || '');
                 cardEl.dataset.itemTitle = item.title || '';
-                cardEl.dataset.itemAuthor = item.author || '';
+                cardEl.dataset.itemAuthor = item.rawAuthor ?? '';
                 cardEl.dataset.itemDate = item.date || '';
                 cardEl.dataset.itemStatus = item.status || '';
                 cardEl.dataset.itemDescription = item.excerpt || '';

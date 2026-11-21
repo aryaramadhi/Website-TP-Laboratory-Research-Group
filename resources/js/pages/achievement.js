@@ -85,14 +85,6 @@ export function resolveAchievementAuthor(raw) {
         return directAuthor.trim();
     }
 
-    const alumni = raw.anggotaAlumni || raw.anggota_alumni;
-    if (alumni && typeof alumni === 'object') {
-        const memberName = alumni.nama_lengkap || alumni.nama;
-        if (typeof memberName === 'string' && memberName.trim()) {
-            return memberName.trim();
-        }
-    }
-
     return NEUTRAL_AUTHOR;
 }
 
@@ -114,13 +106,14 @@ export function resolveAchievementDate(raw) {
         try {
             const dateObj = new Date(rawDate);
             if (!isNaN(dateObj.getTime())) {
-                const parsedYear = String(dateObj.getFullYear());
+                const parsedYear = String(dateObj.getUTCFullYear());
                 if (!badge) badge = parsedYear;
                 isoDate = rawDate.slice(0, 10);
                 displayDate = new Intl.DateTimeFormat('id-ID', {
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric',
+                    timeZone: 'UTC',
                 }).format(dateObj);
             }
         } catch {
@@ -150,8 +143,9 @@ export function mapAchievementItem(raw) {
     const organizer = raw.penyelenggara ?? '';
     const level = raw.tingkat ?? '';
     const dateInfo = resolveAchievementDate(raw);
+    const directAuthor = raw.penulis ?? raw.author ?? raw.penerima ?? null;
+    const rawAuthor = typeof directAuthor === 'string' ? directAuthor.trim() : '';
     const author = resolveAchievementAuthor(raw);
-    const authorId = raw.anggota_alumni_id ?? raw.anggotaAlumni?.anggota_alumni_id ?? null;
 
     const projectRelation = raw.proyekRiset || raw.proyek_riset;
     const projectTitle = projectRelation?.judul_penelitian_simulasi || '';
@@ -199,7 +193,7 @@ export function mapAchievementItem(raw) {
         documentName,
         isDocument: isDoc,
         author,
-        authorId,
+        rawAuthor,
         project: projectTitle,
         href: id ? `/prestasi/${id}` : '#',
         raw,
@@ -210,8 +204,7 @@ export function renderAchievementCard(item) {
     const safeId = escapeHtml(item.id ?? '');
     const safeTitle = escapeHtml(item.title);
     const safeDescription = escapeHtml(item.description);
-    const safeAuthor = escapeHtml(item.author);
-    const safeAuthorId = escapeHtml(item.authorId ?? item.raw?.anggota_alumni_id ?? item.raw?.anggotaAlumni?.anggota_alumni_id ?? '');
+    const safeAuthor = escapeHtml(item.rawAuthor ?? '');
     const safeDate = escapeHtml(item.isoDate || item.badge || '');
     const safeYear = escapeHtml(item.year || item.badge || '');
     const safeBadge = escapeHtml(item.badge || '');
@@ -243,7 +236,6 @@ export function renderAchievementCard(item) {
             data-item-type="achievement"
             data-item-title="${safeTitle}"
             data-item-author="${safeAuthor}"
-            data-item-author-id="${safeAuthorId}"
             data-item-year="${safeYear}"
             data-item-date="${safeDate}"
             data-item-content="${safeDescription}"
@@ -587,7 +579,7 @@ export async function loadAchievementDetail(detailContainer) {
             if (cardEl) {
                 cardEl.dataset.itemId = String(item.id || '');
                 cardEl.dataset.itemTitle = item.title || '';
-                cardEl.dataset.itemAuthor = item.author || '';
+                cardEl.dataset.itemAuthor = item.rawAuthor ?? '';
                 cardEl.dataset.itemYear = String(item.year || item.badge || '');
                 cardEl.dataset.itemDate = item.isoDate || (item.year ? `${item.year}-01-01` : '');
                 cardEl.dataset.itemContent = item.description || '';

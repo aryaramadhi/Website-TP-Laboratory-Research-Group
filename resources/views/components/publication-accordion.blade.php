@@ -25,11 +25,11 @@
                     <ul class="publication-accordion__list">
                         @foreach ($publications as $pub)
                             @php
-                                $author = trim((string) ($pub->author ?? ''));
-                                $yearVal = trim((string) ($pub->year ?? ''));
-                                $title = trim((string) ($pub->title ?? ''));
-                                $journal = trim((string) ($pub->journal ?? ''));
-                                $rawUrl = trim((string) ($pub->link ?: ($pub->doi ?? '')));
+                                $author = trim((string) ($pub->penulis ?? $pub->author ?? ''));
+                                $yearVal = trim((string) ($pub->tahun ?? $pub->year ?? ''));
+                                $title = trim((string) ($pub->judul_karya_hibah ?? $pub->title ?? ''));
+                                $journal = trim((string) ($pub->nama_jurnal_skema ?? $pub->journal ?? ''));
+                                $rawUrl = trim((string) ($pub->tautan_eksternal ?? ($pub->link ?: ($pub->doi ?? ''))));
                                 if ($rawUrl !== '' && preg_match('/[\x00-\x1F\x7F<>"\'`\s]/', $rawUrl)) {
                                     $rawUrl = '';
                                 } elseif ($rawUrl !== '' && preg_match('/^10\.\d{4,9}\/[-._;()\/:A-Za-z0-9]+$/', $rawUrl)) {
@@ -44,15 +44,15 @@
                                     : '';
                             @endphp
                             <li class="publication-accordion__entry editable-item"
-                                data-item-id="{{ $pub->id }}"
+                                data-item-id="{{ $pub->publikasi_hibah_id ?? $pub->id }}"
                                 data-item-type="publication"
-                                data-item-title="{{ $pub->title }}"
-                                data-item-author="{{ $pub->author }}"
-                                data-item-journal="{{ $pub->journal }}"
-                                data-item-year="{{ $pub->year }}"
-                                data-item-doi="{{ $pub->doi ?? $pub->link }}"
-                                data-item-link="{{ $pub->link ?? $pub->doi }}"
-                                data-item-description="{{ $pub->description }}"
+                                data-item-title="{{ $title }}"
+                                data-item-author="{{ $author }}"
+                                data-item-journal="{{ $journal }}"
+                                data-item-year="{{ $yearVal }}"
+                                data-item-doi="{{ $pub->tautan_eksternal ?? $pub->doi ?? $pub->link ?? '' }}"
+                                data-item-link="{{ $pub->tautan_eksternal ?? $pub->link ?? $pub->doi ?? '' }}"
+                                data-item-description="{{ $pub->deskripsi_pencapaian ?? $pub->description ?? '' }}"
                             >
                                 <x-admin-edit-button modal="edit-publication-modal" label="Edit Publikasi" />
                                 <p class="publication-accordion__entry-citation">@if ($author !== '' && $yearVal !== ''){{ $author }} ({{ $yearVal }}).@elseif ($author !== ''){{ $ensurePeriod($author) }}@elseif ($yearVal !== '')({{ $yearVal }}).@endif @if ($title !== ''){{ $ensurePeriod($title) }} @endif @if ($journal !== ''){{ $ensurePeriod($journal) }} @endif @if ($validUrl)<a href="{{ $validUrl }}" target="_blank" rel="noopener noreferrer" class="publication-accordion__entry-link">{{ $validUrl }}</a>@endif</p>

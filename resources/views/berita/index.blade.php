@@ -23,6 +23,7 @@
                         :id="$item->id"
                         :image="$item->main_image"
                         :title="$item->title"
+                        :author="$item->penulis ?? $item->author ?? null"
                         :excerpt="$item->excerpt"
                         :href="url('/berita/' . $item->id)"
                         :reverse="$loop->even"

@@ -25,6 +25,7 @@
                         :id="$achievement->id"
                         :image="$achievement->image_url"
                         :title="$achievement->title"
+                        :author="$achievement->penulis ?? $achievement->author ?? null"
                         :date="$achievement->date"
                         :description="$achievement->excerpt"
                         :href="url('/prestasi/' . $achievement->id)"
