@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Admin;
-use App\Models\AnggotaAlumni;
 use App\Models\BeritaIsu;
 use App\Models\PrestasiPencapaian;
 use App\Models\ProyekRiset;
+use App\Models\PublikasiHibah;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -18,7 +18,6 @@ class CmsImageUploadAndSortingTest extends TestCase
     use RefreshDatabase;
 
     protected Admin $admin;
-    protected AnggotaAlumni $alumni;
 
     protected function setUp(): void
     {
@@ -32,16 +31,6 @@ class CmsImageUploadAndSortingTest extends TestCase
                 'password' => bcrypt('password123'),
                 'peran' => 'Admin',
                 'status_akses' => true,
-            ]
-        );
-
-        $this->alumni = AnggotaAlumni::firstOrCreate(
-            ['nama_lengkap' => 'Dr. Budi Santoso'],
-            [
-                'kepakaran' => 'Artificial Intelligence & IoT',
-                'peran_lab' => 'Peneliti Utama',
-                'tahun_masuk' => 2020,
-                'admin_id' => $this->admin->admin_id,
             ]
         );
 
@@ -88,10 +77,10 @@ class CmsImageUploadAndSortingTest extends TestCase
 
         $response = $this->postJson('/api/proyek-riset', [
             'judul_penelitian_simulasi' => 'Riset Dengan Gambar Lengkap',
+            'penulis' => 'Dr. Peneliti Utama',
             'deskripsi_singkat' => 'Deskripsi riset pengujian upload gambar.',
             'tanggal_mulai' => '2026-11-06',
             'status_proyek' => 'Sedang Berjalan',
-            'admin_id' => $this->admin->admin_id,
             'image' => $mainFile,
             'supporting_image_1' => $supp1File,
             'supporting_image_2' => $supp2File,
@@ -142,10 +131,10 @@ class CmsImageUploadAndSortingTest extends TestCase
 
         $response = $this->postJson('/api/berita-isu', [
             'judul_berita' => 'Berita Peluncuran Prototipe',
+            'penulis' => 'Tim Redaksi TP Lab',
             'tanggal_rilis' => '2026-11-06',
             'isi_artikel_ringkas' => 'Isi berita dengan penanda [[NEWS_IMAGES]] di dalamnya.',
             'topik_utama' => 'Riset',
-            'admin_id' => $this->admin->admin_id,
             'image' => $mainFile,
             'supporting_image_1' => $supp1File,
             'supporting_image_2' => $supp2File,
@@ -173,9 +162,9 @@ class CmsImageUploadAndSortingTest extends TestCase
 
         $response = $this->postJson('/api/prestasi-pencapaian', [
             'nama_prestasi' => 'Juara 1 Hackathon IoT',
+            'penulis' => 'Dr. Budi Santoso',
             'tahun_diperoleh' => 2026,
             'deskripsi' => 'Penghargaan karya terbaik.',
-            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
             'image' => $photoFile,
             'dokumentasi_bukti' => $pdfFile,
         ]);
@@ -207,9 +196,9 @@ class CmsImageUploadAndSortingTest extends TestCase
 
         $createRes = $this->postJson('/api/berita-isu', [
             'judul_berita' => 'Berita Awal',
+            'penulis' => 'Tim Redaksi TP Lab',
             'isi_artikel_ringkas' => "Paragraf 1\n\n[[NEWS_IMAGES]]\n\nParagraf 2",
             'tanggal_rilis' => '2026-11-10',
-            'admin_id' => $this->admin->admin_id,
             'image' => $mainFile,
             'supporting_image_1' => $supp1File,
             'supporting_image_2' => $supp2File,
@@ -246,10 +235,10 @@ class CmsImageUploadAndSortingTest extends TestCase
         $sharedFile = UploadedFile::fake()->image('shared.jpg', 800, 600);
         $createRes = $this->postJson('/api/proyek-riset', [
             'judul_penelitian_simulasi' => 'Riset Pertama',
+            'penulis' => 'Dr. Peneliti Utama',
             'deskripsi_singkat' => 'Deskripsi [[RESEARCH_IMAGES]]',
             'tanggal_mulai' => '2026-11-10',
             'status_proyek' => 'Sedang Berjalan',
-            'admin_id' => $this->admin->admin_id,
             'image' => $sharedFile,
         ]);
 
@@ -292,10 +281,10 @@ class CmsImageUploadAndSortingTest extends TestCase
         // Invalid type rejection
         $response1 = $this->postJson('/api/proyek-riset', [
             'judul_penelitian_simulasi' => 'Test Gagal Format',
+            'penulis' => 'Dr. Peneliti Utama',
             'deskripsi_singkat' => 'Test',
             'tanggal_mulai' => '2026-11-06',
             'status_proyek' => 'Sedang Berjalan',
-            'admin_id' => $this->admin->admin_id,
             'image' => $textDoc,
         ]);
         $response1->assertStatus(422);
@@ -304,10 +293,10 @@ class CmsImageUploadAndSortingTest extends TestCase
         // Large file rejection
         $response2 = $this->postJson('/api/proyek-riset', [
             'judul_penelitian_simulasi' => 'Test Gagal Ukuran',
+            'penulis' => 'Dr. Peneliti Utama',
             'deskripsi_singkat' => 'Test',
             'tanggal_mulai' => '2026-11-06',
             'status_proyek' => 'Sedang Berjalan',
-            'admin_id' => $this->admin->admin_id,
             'image' => $largeImage,
         ]);
         $response2->assertStatus(422);
@@ -321,9 +310,9 @@ class CmsImageUploadAndSortingTest extends TestCase
 
         $createRes = $this->postJson('/api/prestasi-pencapaian', [
             'nama_prestasi' => 'Juara 1 Simulasi Energi',
+            'penulis' => 'Dr. Budi Santoso',
             'tahun_diperoleh' => 2026,
             'deskripsi' => 'Dokumen bukti awal valid.',
-            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
             'image' => $photoFile,
             'dokumentasi_bukti' => $pdfFile,
         ]);
@@ -339,14 +328,25 @@ class CmsImageUploadAndSortingTest extends TestCase
         $dangerousFile = UploadedFile::fake()->create('exploit.php', 50, 'application/x-httpd-php');
         $storeInvalidRes = $this->postJson('/api/prestasi-pencapaian', [
             'nama_prestasi' => 'Percobaan Upload Berbahaya',
+            'penulis' => 'Dr. Budi Santoso',
             'tahun_diperoleh' => 2026,
-            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
             'dokumentasi_bukti' => $dangerousFile,
         ]);
         $storeInvalidRes->assertStatus(422);
         $storeInvalidRes->assertJsonValidationErrors('dokumentasi_bukti');
 
-        $oversizedPdf = UploadedFile::fake()->create('besar.pdf', 3000, 'application/pdf');
+        $pdf4Mb = UploadedFile::fake()->create('sertifikat_4mb.pdf', 4096, 'application/pdf');
+        $update4MbRes = $this->postJson("/api/prestasi-pencapaian/{$prestasi->prestasi_id}", [
+            '_method' => 'PUT',
+            'nama_prestasi' => 'Juara 1 Simulasi Energi PDF 4MB',
+            'document' => $pdf4Mb,
+        ]);
+        $update4MbRes->assertStatus(200);
+        $prestasi->refresh();
+        $origProofPath = $prestasi->dokumentasi_bukti;
+        Storage::disk('public')->assertExists($origProofPath);
+
+        $oversizedPdf = UploadedFile::fake()->create('besar.pdf', 6000, 'application/pdf');
         $updateOversizedRes = $this->postJson("/api/prestasi-pencapaian/{$prestasi->prestasi_id}", [
             '_method' => 'PUT',
             'nama_prestasi' => 'Gagal Ukuran PDF',
@@ -354,6 +354,15 @@ class CmsImageUploadAndSortingTest extends TestCase
         ]);
         $updateOversizedRes->assertStatus(422);
         $updateOversizedRes->assertJsonValidationErrors('dokumentasi_bukti');
+
+        $oversizedDocField = UploadedFile::fake()->create('besar_doc.pdf', 6000, 'application/pdf');
+        $updateOversizedDocRes = $this->postJson("/api/prestasi-pencapaian/{$prestasi->prestasi_id}", [
+            '_method' => 'PUT',
+            'nama_prestasi' => 'Gagal Ukuran Document',
+            'document' => $oversizedDocField,
+        ]);
+        $updateOversizedDocRes->assertStatus(422);
+        $updateOversizedDocRes->assertJsonValidationErrors('document');
 
         $exeFile = UploadedFile::fake()->create('script.exe', 100, 'application/octet-stream');
         $updateDangerousRes = $this->postJson("/api/prestasi-pencapaian/{$prestasi->prestasi_id}", [
@@ -387,8 +396,8 @@ class CmsImageUploadAndSortingTest extends TestCase
     {
         $validRes = $this->postJson('/api/prestasi-pencapaian', [
             'nama_prestasi' => 'Prestasi Path Legacy',
+            'penulis' => 'Dr. Budi Santoso',
             'tahun_diperoleh' => 2025,
-            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
             'dokumentasi_bukti' => 'sertifikat_juara1.pdf',
         ]);
         $validRes->assertStatus(201);
@@ -399,8 +408,8 @@ class CmsImageUploadAndSortingTest extends TestCase
 
         $validImageProofRes = $this->postJson('/api/prestasi-pencapaian', [
             'nama_prestasi' => 'Prestasi Upload Gambar Bukti',
+            'penulis' => 'Dr. Budi Santoso',
             'tahun_diperoleh' => 2026,
-            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
             'dokumentasi_bukti' => UploadedFile::fake()->image('bukti_legacy.png'),
         ]);
         $validImageProofRes->assertStatus(201);
@@ -416,8 +425,8 @@ class CmsImageUploadAndSortingTest extends TestCase
         foreach ($unsafeInputs as $unsafeInput) {
             $unsafeRes = $this->postJson('/api/prestasi-pencapaian', [
                 'nama_prestasi' => 'Prestasi Input Tidak Aman',
+                'penulis' => 'Dr. Budi Santoso',
                 'tahun_diperoleh' => 2025,
-                'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
                 'dokumentasi_bukti' => $unsafeInput,
             ]);
             $unsafeRes->assertStatus(422);
@@ -444,10 +453,10 @@ class CmsImageUploadAndSortingTest extends TestCase
                 'mainCol' => 'dokumentasi_visual_utama',
                 'createPayload' => [
                     'judul_penelitian_simulasi' => 'Riset Pair UX',
+                    'penulis' => 'Dr. Peneliti Utama',
                     'deskripsi_singkat' => 'Deskripsi riset awal',
                     'tanggal_mulai' => '2026-04-01',
                     'status_proyek' => 'Sedang Berjalan',
-                    'admin_id' => $this->admin->admin_id,
                 ],
                 'updatePayload' => ['judul_penelitian_simulasi' => 'Riset Pair UX Updated'],
             ],
@@ -458,9 +467,9 @@ class CmsImageUploadAndSortingTest extends TestCase
                 'mainCol' => 'gambar_pendukung',
                 'createPayload' => [
                     'judul_berita' => 'Berita Pair UX',
+                    'penulis' => 'Tim Redaksi TP Lab',
                     'isi_artikel_ringkas' => 'Isi berita awal',
                     'tanggal_rilis' => '2026-04-01',
-                    'admin_id' => $this->admin->admin_id,
                 ],
                 'updatePayload' => ['judul_berita' => 'Berita Pair UX Updated'],
             ],
@@ -471,9 +480,9 @@ class CmsImageUploadAndSortingTest extends TestCase
                 'mainCol' => 'gambar_utama',
                 'createPayload' => [
                     'nama_prestasi' => 'Prestasi Pair UX',
+                    'penulis' => 'Dr. Budi Santoso',
                     'tahun_diperoleh' => 2026,
                     'deskripsi' => 'Deskripsi prestasi awal',
-                    'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
                 ],
                 'updatePayload' => ['nama_prestasi' => 'Prestasi Pair UX Updated'],
             ],
@@ -545,12 +554,10 @@ class CmsImageUploadAndSortingTest extends TestCase
             $removeMainRes->assertJsonValidationErrors('image');
             Storage::disk('public')->assertExists($origMain);
 
-            // 7. Partial supporting replacement or partial removal must fail with 422 and preserve old files.
+            // 7. Partial supporting upload replacement or mixing upload with remove must fail with 422 and preserve old files.
             $partialCases = [
                 ['supporting_image_1' => UploadedFile::fake()->image('only1.jpg')],
                 ['supporting_image_2' => UploadedFile::fake()->image('only2.jpg')],
-                ['remove_supporting_image_1' => '1'],
-                ['remove_supporting_image_2' => '1'],
                 [
                     'supporting_image_1' => UploadedFile::fake()->image('mix1.jpg'),
                     'remove_supporting_image_2' => '1',
@@ -595,7 +602,32 @@ class CmsImageUploadAndSortingTest extends TestCase
             Storage::disk('public')->assertExists($newSupp1);
             Storage::disk('public')->assertExists($newSupp2);
 
-            // 9. Removing both supporting images together clears both columns and deletes both unreferenced files.
+            // 9a. Sending a single remove_supporting_image_1 flag clears BOTH columns and deletes both unreferenced files.
+            $removeSingleFlagRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
+                '_method' => 'PUT',
+                'remove_supporting_image_1' => '1',
+            ]));
+            $removeSingleFlagRes->assertStatus(200);
+            $record->refresh();
+            $this->assertNull($record->gambar_pendukung_1);
+            $this->assertNull($record->gambar_pendukung_2);
+            Storage::disk('public')->assertExists($newMain);
+            Storage::disk('public')->assertMissing($newSupp1);
+            Storage::disk('public')->assertMissing($newSupp2);
+
+            // 9b. Re-upload pair and remove using both flags together also clears both columns and deletes files.
+            $reuploadPairRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
+                '_method' => 'PUT',
+                'supporting_image_1' => UploadedFile::fake()->image('supp1-reupload.png'),
+                'supporting_image_2' => UploadedFile::fake()->image('supp2-reupload.png'),
+            ]));
+            $reuploadPairRes->assertStatus(200);
+            $record->refresh();
+            $reupSupp1 = $record->gambar_pendukung_1;
+            $reupSupp2 = $record->gambar_pendukung_2;
+            Storage::disk('public')->assertExists($reupSupp1);
+            Storage::disk('public')->assertExists($reupSupp2);
+
             $removePairRes = $this->postJson("{$cfg['endpoint']}/{$id}", array_merge($cfg['updatePayload'], [
                 '_method' => 'PUT',
                 'remove_supporting_image_1' => '1',
@@ -605,9 +637,8 @@ class CmsImageUploadAndSortingTest extends TestCase
             $record->refresh();
             $this->assertNull($record->gambar_pendukung_1);
             $this->assertNull($record->gambar_pendukung_2);
-            Storage::disk('public')->assertExists($newMain);
-            Storage::disk('public')->assertMissing($newSupp1);
-            Storage::disk('public')->assertMissing($newSupp2);
+            Storage::disk('public')->assertMissing($reupSupp1);
+            Storage::disk('public')->assertMissing($reupSupp2);
         }
     }
 
@@ -615,9 +646,9 @@ class CmsImageUploadAndSortingTest extends TestCase
     {
         $sharedRes = $this->postJson('/api/berita-isu', [
             'judul_berita' => 'Berita Berbagi Gambar 1',
+            'penulis' => 'Tim Redaksi TP Lab',
             'isi_artikel_ringkas' => 'Konten 1',
             'tanggal_rilis' => '2026-04-01',
-            'admin_id' => $this->admin->admin_id,
             'image' => UploadedFile::fake()->image('main-1.jpg'),
             'supporting_image_1' => UploadedFile::fake()->image('shared-gallery-1.jpg'),
             'supporting_image_2' => UploadedFile::fake()->image('shared-gallery-2.jpg'),
@@ -630,6 +661,7 @@ class CmsImageUploadAndSortingTest extends TestCase
 
         BeritaIsu::create([
             'judul_berita' => 'Berita Berbagi Gambar 2',
+            'penulis' => 'Tim Redaksi TP Lab',
             'isi_artikel_ringkas' => 'Konten 2',
             'tanggal_rilis' => '2026-04-02',
             'admin_id' => $this->admin->admin_id,
@@ -669,18 +701,30 @@ class CmsImageUploadAndSortingTest extends TestCase
         $this->assertDatabaseHas('prestasi_pencapaian', [
             'prestasi_id' => $prestasiId,
             'penulis' => 'Dr. Budi Santoso',
-            'anggota_alumni_id' => null,
         ]);
 
-        // Empty penulis without anggota_alumni_id must fail validation with 422 on penulis.
-        $emptyAuthorRes = $this->postJson('/api/prestasi-pencapaian', [
+        // Omitting or emptying penulis on API is nullable (stored as null, never overwritten by admin name).
+        $nullableAuthorRes = $this->postJson('/api/prestasi-pencapaian', [
             'nama_prestasi' => 'Prestasi Tanpa Penulis',
             'penulis' => '',
             'tahun_diperoleh' => 2026,
             'image' => UploadedFile::fake()->image('missing_author.jpg'),
         ]);
-        $emptyAuthorRes->assertStatus(422);
-        $emptyAuthorRes->assertJsonValidationErrors('penulis');
+        $nullableAuthorRes->assertStatus(201);
+        $this->assertDatabaseHas('prestasi_pencapaian', [
+            'prestasi_id' => $nullableAuthorRes->json('data.prestasi_id'),
+            'penulis' => null,
+        ]);
+
+        // Overlong penulis (>255 chars) must fail validation with 422.
+        $tooLongAuthorRes = $this->postJson('/api/prestasi-pencapaian', [
+            'nama_prestasi' => 'Prestasi Penulis Terlalu Panjang',
+            'penulis' => str_repeat('A', 256),
+            'tahun_diperoleh' => 2026,
+            'image' => UploadedFile::fake()->image('long_author.jpg'),
+        ]);
+        $tooLongAuthorRes->assertStatus(422);
+        $tooLongAuthorRes->assertJsonValidationErrors('penulis');
 
         // Updating penulis via _method=PUT persists new manual author name and exposes it via API.
         $updateRes = $this->postJson("/api/prestasi-pencapaian/{$prestasiId}", [
@@ -703,23 +747,200 @@ class CmsImageUploadAndSortingTest extends TestCase
         $showRes = $this->getJson("/api/prestasi-pencapaian/{$prestasiId}");
         $showRes->assertStatus(200);
         $showRes->assertJsonPath('penulis', 'Prof. Siti Aminah');
+    }
 
-        // Existing alumni records and legacy anggota_alumni_id achievements remain intact.
-        $this->assertDatabaseHas('anggota_alumni', [
-            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
-            'nama_lengkap' => 'Dr. Budi Santoso',
+    public function test_research_news_and_publication_manual_penulis_create_update_validation_and_admin_id_protection(): void
+    {
+        // 1. Proyek Riset: nullable API penulis (not defaulted to admin name), max:255 check, create sets admin_id from token, update blocks spoofing.
+        $nullableResearchAuthor = $this->postJson('/api/proyek-riset', [
+            'judul_penelitian_simulasi' => 'Riset Tanpa Penulis API',
+            'deskripsi_singkat' => 'Deskripsi riset',
+            'tanggal_mulai' => '2026-05-01',
+            'status_proyek' => 'Sedang Berjalan',
+            'image' => UploadedFile::fake()->image('riset-no-author.jpg'),
+        ]);
+        $nullableResearchAuthor->assertStatus(201)
+            ->assertJsonPath('data.penulis', null);
+        $this->assertDatabaseHas('proyek_riset', [
+            'proyek_id' => $nullableResearchAuthor->json('data.proyek_id'),
+            'penulis' => null,
+            'admin_id' => $this->admin->admin_id,
         ]);
 
-        $legacyRes = $this->postJson('/api/prestasi-pencapaian', [
-            'nama_prestasi' => 'Prestasi Relasi Legacy',
-            'tahun_diperoleh' => 2025,
-            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
-            'image' => UploadedFile::fake()->image('legacy_author.jpg'),
+        $overlongResearchAuthor = $this->postJson('/api/proyek-riset', [
+            'judul_penelitian_simulasi' => 'Riset Penulis Panjang',
+            'penulis' => str_repeat('B', 256),
+            'deskripsi_singkat' => 'Deskripsi riset',
+            'tanggal_mulai' => '2026-05-01',
+            'status_proyek' => 'Sedang Berjalan',
+            'image' => UploadedFile::fake()->image('riset-long-author.jpg'),
         ]);
-        $legacyRes->assertStatus(201);
-        $this->assertDatabaseHas('prestasi_pencapaian', [
-            'prestasi_id' => $legacyRes->json('data.prestasi_id'),
-            'anggota_alumni_id' => $this->alumni->anggota_alumni_id,
+        $overlongResearchAuthor->assertStatus(422)
+            ->assertJsonValidationErrors(['penulis']);
+
+        $createResearch = $this->postJson('/api/proyek-riset', [
+            'judul_penelitian_simulasi' => 'Riset Penulis Manual',
+            'penulis' => '  Prof. Hendra Wijaya  ',
+            'deskripsi_singkat' => 'Deskripsi riset manual penulis',
+            'tanggal_mulai' => '2026-05-01',
+            'status_proyek' => 'Sedang Berjalan',
+            'admin_id' => 999,
+            'image' => UploadedFile::fake()->image('riset-author.jpg'),
         ]);
+        $createResearch->assertStatus(201)
+            ->assertJsonPath('data.penulis', 'Prof. Hendra Wijaya');
+
+        $proyekId = $createResearch->json('data.proyek_id');
+        $this->assertDatabaseHas('proyek_riset', [
+            'proyek_id' => $proyekId,
+            'penulis' => 'Prof. Hendra Wijaya',
+            'admin_id' => $this->admin->admin_id,
+        ]);
+
+        $this->getJson('/api/proyek-riset')
+            ->assertStatus(200)
+            ->assertJsonPath('data.0.penulis', 'Prof. Hendra Wijaya');
+
+        $this->getJson("/api/proyek-riset/{$proyekId}")
+            ->assertStatus(200)
+            ->assertJsonPath('data.penulis', 'Prof. Hendra Wijaya');
+
+        $updateResearch = $this->postJson("/api/proyek-riset/{$proyekId}", [
+            '_method' => 'PUT',
+            'penulis' => 'Dr. Siti Aminah',
+            'admin_id' => 999,
+        ]);
+        $updateResearch->assertStatus(200)
+            ->assertJsonPath('data.penulis', 'Dr. Siti Aminah');
+
+        $this->assertDatabaseHas('proyek_riset', [
+            'proyek_id' => $proyekId,
+            'penulis' => 'Dr. Siti Aminah',
+            'admin_id' => $this->admin->admin_id,
+        ]);
+
+        // 2. Berita & Isu: nullable API penulis, max:255 check, create/update/list/show expose penulis & preserve admin_id.
+        $nullableNewsAuthor = $this->postJson('/api/berita-isu', [
+            'judul_berita' => 'Berita Tanpa Penulis API',
+            'penulis' => '',
+            'tanggal_rilis' => '2026-05-02',
+            'isi_artikel_ringkas' => 'Isi berita',
+            'image' => UploadedFile::fake()->image('news-no-author.jpg'),
+        ]);
+        $nullableNewsAuthor->assertStatus(201)
+            ->assertJsonPath('data.penulis', null);
+
+        $overlongNewsAuthor = $this->postJson('/api/berita-isu', [
+            'judul_berita' => 'Berita Penulis Panjang',
+            'penulis' => str_repeat('C', 256),
+            'tanggal_rilis' => '2026-05-02',
+            'isi_artikel_ringkas' => 'Isi berita',
+            'image' => UploadedFile::fake()->image('news-long-author.jpg'),
+        ]);
+        $overlongNewsAuthor->assertStatus(422)
+            ->assertJsonValidationErrors(['penulis']);
+
+        $createNews = $this->postJson('/api/berita-isu', [
+            'judul_berita' => 'Berita Penulis Manual',
+            'penulis' => '  Tim Redaksi TP Lab  ',
+            'tanggal_rilis' => '2026-05-02',
+            'isi_artikel_ringkas' => 'Isi berita manual penulis',
+            'topik_utama' => 'Riset',
+            'admin_id' => 999,
+            'image' => UploadedFile::fake()->image('news-author.jpg'),
+        ]);
+        $createNews->assertStatus(201)
+            ->assertJsonPath('data.penulis', 'Tim Redaksi TP Lab');
+
+        $beritaId = $createNews->json('data.berita_id');
+        $this->assertDatabaseHas('berita_isu', [
+            'berita_id' => $beritaId,
+            'penulis' => 'Tim Redaksi TP Lab',
+            'admin_id' => $this->admin->admin_id,
+        ]);
+
+        $newsList = $this->getJson('/api/berita-isu');
+        $newsList->assertStatus(200);
+        $matchedNews = collect($newsList->json())->firstWhere('berita_id', $beritaId);
+        $this->assertNotNull($matchedNews);
+        $this->assertSame('Tim Redaksi TP Lab', $matchedNews['penulis']);
+
+        $this->getJson("/api/berita-isu/{$beritaId}")
+            ->assertStatus(200)
+            ->assertJsonPath('penulis', 'Tim Redaksi TP Lab');
+
+        $updateNews = $this->postJson("/api/berita-isu/{$beritaId}", [
+            '_method' => 'PUT',
+            'penulis' => 'Editor Utama',
+            'admin_id' => 999,
+        ]);
+        $updateNews->assertStatus(200)
+            ->assertJsonPath('data.penulis', 'Editor Utama');
+
+        $this->assertDatabaseHas('berita_isu', [
+            'berita_id' => $beritaId,
+            'penulis' => 'Editor Utama',
+            'admin_id' => $this->admin->admin_id,
+        ]);
+
+        // 3. Publikasi & Hibah: nullable API penulis, max:255 check, create/update/list/show expose penulis & preserve admin_id.
+        $nullablePublicationAuthor = $this->postJson('/api/publikasi-hibah', [
+            'judul_karya_hibah' => 'Publikasi Tanpa Penulis API',
+            'tahun' => 2026,
+        ]);
+        $nullablePublicationAuthor->assertStatus(201)
+            ->assertJsonPath('data.penulis', null);
+
+        $overlongPublicationAuthor = $this->postJson('/api/publikasi-hibah', [
+            'judul_karya_hibah' => 'Publikasi Penulis Panjang',
+            'penulis' => str_repeat('D', 256),
+            'tahun' => 2026,
+        ]);
+        $overlongPublicationAuthor->assertStatus(422)
+            ->assertJsonValidationErrors(['penulis']);
+
+        $createPublication = $this->postJson('/api/publikasi-hibah', [
+            'jenis' => 'Publikasi Jurnal',
+            'judul_karya_hibah' => 'Publikasi Penulis Manual',
+            'penulis' => '  Dr. Eng. Tika Erna Putri  ',
+            'nama_jurnal_skema' => 'IEEE Photovoltaics',
+            'tahun' => 2026,
+            'tautan_eksternal' => 'https://doi.org/10.1000/manual-author-test',
+            'proyek_id' => $proyekId,
+            'admin_id' => 999,
+        ]);
+        $createPublication->assertStatus(201)
+            ->assertJsonPath('data.penulis', 'Dr. Eng. Tika Erna Putri');
+
+        $publikasiId = $createPublication->json('data.publikasi_hibah_id');
+        $this->assertDatabaseHas('publikasi_hibah', [
+            'publikasi_hibah_id' => $publikasiId,
+            'penulis' => 'Dr. Eng. Tika Erna Putri',
+            'admin_id' => $this->admin->admin_id,
+        ]);
+
+        $publicationList = $this->getJson('/api/publikasi-hibah');
+        $publicationList->assertStatus(200);
+        $matchedPublication = collect($publicationList->json())->firstWhere('publikasi_hibah_id', $publikasiId);
+        $this->assertNotNull($matchedPublication);
+        $this->assertSame('Dr. Eng. Tika Erna Putri', $matchedPublication['penulis']);
+
+        $this->getJson("/api/publikasi-hibah/{$publikasiId}")
+            ->assertStatus(200)
+            ->assertJsonPath('penulis', 'Dr. Eng. Tika Erna Putri');
+
+        $updatePublication = $this->putJson("/api/publikasi-hibah/{$publikasiId}", [
+            'penulis' => 'Prof. Rina Kusuma',
+            'admin_id' => 999,
+        ]);
+        $updatePublication->assertStatus(200)
+            ->assertJsonPath('data.penulis', 'Prof. Rina Kusuma');
+
+        $this->assertDatabaseHas('publikasi_hibah', [
+            'publikasi_hibah_id' => $publikasiId,
+            'penulis' => 'Prof. Rina Kusuma',
+            'admin_id' => $this->admin->admin_id,
+        ]);
+        $this->assertInstanceOf(PublikasiHibah::class, PublikasiHibah::find($publikasiId));
     }
 }
