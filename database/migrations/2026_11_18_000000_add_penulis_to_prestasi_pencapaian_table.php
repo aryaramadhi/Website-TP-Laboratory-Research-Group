@@ -22,7 +22,6 @@ return new class extends Migration
                 }
             });
 
-            // Backfill data lama jika ada record yang belum memiliki nilai penulis manual (kompatibel lintas DB)
             if (Schema::hasTable('anggota_alumni')) {
                 $rows = DB::table('prestasi_pencapaian')
                     ->join('anggota_alumni', 'prestasi_pencapaian.anggota_alumni_id', '=', 'anggota_alumni.anggota_alumni_id')

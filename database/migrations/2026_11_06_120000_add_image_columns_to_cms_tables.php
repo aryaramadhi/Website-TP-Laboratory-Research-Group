@@ -11,7 +11,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1. Tambah kolom gambar pendukung pada proyek_riset
         if (Schema::hasTable('proyek_riset')) {
             Schema::table('proyek_riset', function (Blueprint $table) {
                 if (!Schema::hasColumn('proyek_riset', 'gambar_pendukung_1')) {
@@ -23,7 +22,6 @@ return new class extends Migration
             });
         }
 
-        // 2. Tambah kolom gambar pendukung pada berita_isu (gambar_pendukung = gambar utama)
         if (Schema::hasTable('berita_isu')) {
             Schema::table('berita_isu', function (Blueprint $table) {
                 if (!Schema::hasColumn('berita_isu', 'gambar_pendukung_1')) {
@@ -35,7 +33,6 @@ return new class extends Migration
             });
         }
 
-        // 3. Tambah kolom gambar utama & pendukung pada prestasi_pencapaian
         if (Schema::hasTable('prestasi_pencapaian')) {
             Schema::table('prestasi_pencapaian', function (Blueprint $table) {
                 if (!Schema::hasColumn('prestasi_pencapaian', 'gambar_utama')) {
