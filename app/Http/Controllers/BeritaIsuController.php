@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\BeritaIsu;
 use App\Traits\HandlesImageUploads;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 
 class BeritaIsuController extends Controller
 {
@@ -23,53 +22,54 @@ class BeritaIsuController extends Controller
 
     public function store(Request $request)
     {
+        $adminId = $request->user()?->admin_id;
+        if (!$adminId) {
+            return response()->json([
+                'message' => 'Akses ditolak. Identitas admin tidak valid.'
+            ], 403);
+        }
+
+        if (!$request->has('penulis') && $request->has('author')) {
+            $request->merge(['penulis' => $request->input('author')]);
+        }
+
         $validated = $request->validate([
             'judul_berita'        => 'required|string|max:255',
+            'penulis'             => 'nullable|string|max:255',
             'tanggal_rilis'       => 'nullable|date',
             'isi_artikel_ringkas' => 'nullable|string',
-            'topik_utama'         => 'nullable|string|max:100',
-            'admin_id'            => 'nullable|exists:admins,admin_id',
-            'image'               => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'gambar_pendukung'    => 'nullable',
+            'image'               => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'supporting_image_1'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'gambar_pendukung_1'  => 'nullable',
             'supporting_image_2'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'gambar_pendukung_2'  => 'nullable',
+            'topik_utama'         => 'nullable|string|max:100',
         ]);
 
-        // Gambar utama (disimpan pada kolom gambar_pendukung) wajib diunggah saat store
-        $mainImageFile = $request->file('image') ?? $request->file('gambar_pendukung');
-        if (!$mainImageFile && empty($validated['gambar_pendukung'])) {
-            throw ValidationException::withMessages([
-                'image' => ['Gambar utama wajib diunggah.']
-            ]);
+        $this->ensureMainImagePresentOnStore($request, 'gambar_pendukung');
+        $this->validateSupportingImagePair($request, false);
+
+        $penulis = isset($validated['penulis']) ? trim((string) $validated['penulis']) : '';
+        $data = [
+            'judul_berita'        => $validated['judul_berita'],
+            'penulis'             => $penulis !== '' ? $penulis : null,
+            'tanggal_rilis'       => $validated['tanggal_rilis'] ?? null,
+            'isi_artikel_ringkas' => $validated['isi_artikel_ringkas'] ?? null,
+            'topik_utama'         => $validated['topik_utama'] ?? null,
+            'admin_id'            => $adminId,
+        ];
+
+        $mainFile = $request->file('image') ?? $request->file('gambar_pendukung');
+        if ($mainFile) {
+            $data['gambar_pendukung'] = $this->uploadCmsFile($mainFile, 'news');
+        } elseif ($request->filled('gambar_pendukung') && $this->isValidPathString($request->input('gambar_pendukung'))) {
+            $data['gambar_pendukung'] = $request->input('gambar_pendukung');
         }
 
-        // Validasi pasangan gambar pendukung secara atomik
-        $this->validateSupportingImagePair(
-            $request,
-            null,
-            'supporting_image_1',
-            'supporting_image_2',
-            'gambar_pendukung_1',
-            'gambar_pendukung_2'
-        );
+        $this->applySupportingImagesOnStore($request, 'news/gallery', $data);
 
-        $validated['admin_id'] = $request->user()?->admin_id ?? $request->input('admin_id') ?? 1;
-
-        if ($mainImageFile) {
-            $validated['gambar_pendukung'] = $this->uploadCmsFile($mainImageFile, 'berita-isu');
-        }
-
-        if ($request->hasFile('supporting_image_1')) {
-            $validated['gambar_pendukung_1'] = $this->uploadCmsFile($request->file('supporting_image_1'), 'berita-isu');
-        }
-
-        if ($request->hasFile('supporting_image_2')) {
-            $validated['gambar_pendukung_2'] = $this->uploadCmsFile($request->file('supporting_image_2'), 'berita-isu');
-        }
-
-        unset($validated['image'], $validated['supporting_image_1'], $validated['supporting_image_2']);
-
-        $berita = BeritaIsu::create($validated);
+        $berita = BeritaIsu::create($data);
 
         return response()->json([
             'message' => 'Berita/Isu berhasil dibuat',
@@ -85,68 +85,72 @@ class BeritaIsuController extends Controller
 
     public function update(Request $request, $id)
     {
+        $adminId = $request->user()?->admin_id;
+        if (!$adminId) {
+            return response()->json([
+                'message' => 'Akses ditolak. Identitas admin tidak valid.'
+            ], 403);
+        }
+
         $berita = BeritaIsu::findOrFail($id);
 
+        if (!$request->has('penulis') && $request->has('author')) {
+            $request->merge(['penulis' => $request->input('author')]);
+        }
+
         $validated = $request->validate([
-            'judul_berita'        => 'sometimes|required|string|max:255',
-            'tanggal_rilis'       => 'nullable|date',
-            'isi_artikel_ringkas' => 'nullable|string',
-            'topik_utama'         => 'nullable|string|max:100',
-            'admin_id'            => 'nullable|exists:admins,admin_id',
-            'image'               => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-            'gambar_pendukung'    => 'nullable',
-            'supporting_image_1'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-            'supporting_image_2'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'judul_berita'              => 'sometimes|required|string|max:255',
+            'penulis'                   => 'nullable|string|max:255',
+            'tanggal_rilis'             => 'nullable|date',
+            'isi_artikel_ringkas'       => 'nullable|string',
+            'gambar_pendukung'          => 'nullable',
+            'image'                     => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'supporting_image_1'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'gambar_pendukung_1'        => 'nullable',
+            'supporting_image_2'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'gambar_pendukung_2'        => 'nullable',
+            'remove_image'              => 'nullable|in:0,1,true,false',
+            'remove_supporting_image_1' => 'nullable|in:0,1,true,false',
+            'remove_supporting_image_2' => 'nullable|in:0,1,true,false',
+            'topik_utama'               => 'nullable|string|max:100',
         ]);
 
-        $this->validateSupportingImagePair(
-            $request,
-            $berita,
-            'supporting_image_1',
-            'supporting_image_2',
-            'gambar_pendukung_1',
-            'gambar_pendukung_2'
-        );
+        $this->rejectMainImageRemovalOnUpdate($request);
+        $this->validateSupportingImagePair($request, true, $berita);
 
-        if ($request->has('admin_id')) {
-            $validated['admin_id'] = $request->input('admin_id') ?? $request->user()?->admin_id ?? $berita->admin_id;
+        $data = [];
+        foreach (['judul_berita', 'penulis', 'tanggal_rilis', 'isi_artikel_ringkas', 'topik_utama'] as $field) {
+            if ($request->has($field)) {
+                $val = $validated[$field] ?? $request->input($field);
+                if ($field === 'penulis') {
+                    $trimmed = is_string($val) ? trim($val) : '';
+                    $data[$field] = $trimmed !== '' ? $trimmed : null;
+                } else {
+                    $data[$field] = $val;
+                }
+            }
         }
 
-        // Handle update gambar utama
-        $mainImageFile = $request->file('image') ?? $request->file('gambar_pendukung');
-        if ($mainImageFile) {
-            $oldImage = $berita->gambar_pendukung;
-            $validated['gambar_pendukung'] = $this->uploadCmsFile($mainImageFile, 'berita-isu');
-            $this->deleteCmsFile($oldImage, $berita);
+        $pathsToDelete = [];
+
+        $mainFile = $request->file('image') ?? $request->file('gambar_pendukung');
+        if ($mainFile) {
+            $oldPath = $berita->gambar_pendukung;
+            $newPath = $this->uploadCmsFile($mainFile, 'news');
+            if ($newPath) {
+                $data['gambar_pendukung'] = $newPath;
+                if ($oldPath && $oldPath !== $newPath) {
+                    $pathsToDelete[] = $oldPath;
+                }
+            }
+        } elseif ($request->filled('gambar_pendukung') && $this->isValidPathString($request->input('gambar_pendukung'))) {
+            $data['gambar_pendukung'] = $request->input('gambar_pendukung');
         }
 
-        // Handle penghapusan gambar pendukung jika ada flag remove
-        $remove1 = filter_var($request->input('remove_supporting_image_1', false), FILTER_VALIDATE_BOOLEAN);
-        $remove2 = filter_var($request->input('remove_supporting_image_2', false), FILTER_VALIDATE_BOOLEAN);
+        $this->applySupportingImagesOnUpdate($request, $berita, 'news/gallery', $data, $pathsToDelete);
 
-        if ($remove1 || $remove2) {
-            $this->deleteCmsFile($berita->gambar_pendukung_1, $berita);
-            $this->deleteCmsFile($berita->gambar_pendukung_2, $berita);
-            $validated['gambar_pendukung_1'] = null;
-            $validated['gambar_pendukung_2'] = null;
-        }
-
-        // Handle file baru gambar pendukung
-        if ($request->hasFile('supporting_image_1')) {
-            $old1 = $berita->gambar_pendukung_1;
-            $validated['gambar_pendukung_1'] = $this->uploadCmsFile($request->file('supporting_image_1'), 'berita-isu');
-            $this->deleteCmsFile($old1, $berita);
-        }
-
-        if ($request->hasFile('supporting_image_2')) {
-            $old2 = $berita->gambar_pendukung_2;
-            $validated['gambar_pendukung_2'] = $this->uploadCmsFile($request->file('supporting_image_2'), 'berita-isu');
-            $this->deleteCmsFile($old2, $berita);
-        }
-
-        unset($validated['image'], $validated['supporting_image_1'], $validated['supporting_image_2']);
-
-        $berita->update($validated);
+        $berita->update($data);
+        $this->deleteStoredImages($pathsToDelete, $berita);
 
         return response()->json([
             'message' => 'Berita/Isu berhasil diperbarui',
@@ -158,11 +162,14 @@ class BeritaIsuController extends Controller
     {
         $berita = BeritaIsu::findOrFail($id);
 
-        $this->deleteCmsFile($berita->gambar_pendukung, $berita);
-        $this->deleteCmsFile($berita->gambar_pendukung_1, $berita);
-        $this->deleteCmsFile($berita->gambar_pendukung_2, $berita);
+        $pathsToDelete = [
+            $berita->gambar_pendukung,
+            $berita->gambar_pendukung_1,
+            $berita->gambar_pendukung_2,
+        ];
 
         $berita->delete();
+        $this->deleteStoredImages($pathsToDelete);
 
         return response()->json(['message' => 'Berita/Isu berhasil dihapus']);
     }

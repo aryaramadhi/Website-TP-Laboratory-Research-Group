@@ -1,0 +1,60 @@
+:root {
+    /* Fonts */
+    --font-sans: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    /* Primary Palette */
+    --color-primary-100: #F3DDB9;
+    --color-primary-200: #D5B375;
+    --color-primary-300: #A98E5C;
+    --color-primary-400: #7F6A44;
+    --color-primary-500: #58492D;
+    --color-primary-600: #332A18;
+    --color-primary-700: #151007;
+
+    /* Secondary Palette */
+    --color-secondary-100: #F1F1EA;
+    --color-secondary-200: #CBCBC5;
+    --color-secondary-300: #A4A49F;
+    --color-secondary-400: #7F7F7B;
+    --color-secondary-500: #3A3A38;
+    --color-secondary-600: #1C1C1B;
+    --color-secondary-700: #030712;
+
+    /* Neutral Palette */
+    --color-white: #FFFFFF;
+    --color-neutral-100: #D6D6D6;
+    --color-neutral-200: #AFAFAF;
+    --color-neutral-300: #898989;
+    --color-neutral-400: #656565;
+    --color-neutral-500: #434343;
+    --color-neutral-600: #242424;
+    --color-black: #000000;
+
+    /* Typography Scale */
+    --font-size-h1: 60px;
+    --line-height-h1: 68px;
+    --font-size-h2: 48px;
+    --line-height-h2: 60px;
+    --font-size-h3: 40px;
+    --line-height-h3: 48px;
+    --font-size-h4: 32px;
+    --line-height-h4: 40px;
+    --font-size-h5: 24px;
+    --line-height-h5: 32px;
+    --font-size-body-1: 16px;
+    --line-height-body-1: 24px;
+    --font-size-body-2: 14px;
+    --line-height-body-2: 20px;
+
+    /* Border Radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 24px;
+
+    /* Navbar */
+    --navbar-height: 80px;
+
+    /* Container & Layout */
+    --container-width: 1260px;
+    --container-padding: 24px;
+}

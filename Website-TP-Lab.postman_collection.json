@@ -1,8 +1,19 @@
 {
 	"info": {
 		"name": "Website TP Laboratory API",
+		"description": "Koleksi endpoint API terintegrasi untuk Website TP Laboratory Research Group (Auth, Proyek Riset, Publikasi & Hibah, Berita & Isu, serta Prestasi & Pencapaian).",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://127.0.0.1:8000"
+		},
+		{
+			"key": "token",
+			"value": ""
+		}
+	],
 	"item": [
 		{
 			"name": "Auth",
@@ -12,14 +23,20 @@
 					"request": {
 						"method": "POST",
 						"header": [
-							{"key": "Accept", "value": "application/json"},
-							{"key": "Content-Type", "value": "application/json"}
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"email\": \"admin@tplab.com\",\n  \"password\": \"password123\"\n}"
+							"raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
 						},
-						"url": "http://127.0.0.1:8000/api/login"
+						"url": "{{base_url}}/api/login"
 					}
 				},
 				{
@@ -27,10 +44,16 @@
 					"request": {
 						"method": "GET",
 						"header": [
-							{"key": "Accept", "value": "application/json"},
-							{"key": "Authorization", "value": "Bearer {{token}}"}
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
 						],
-						"url": "http://127.0.0.1:8000/api/me"
+						"url": "{{base_url}}/api/me"
 					}
 				},
 				{
@@ -38,10 +61,16 @@
 					"request": {
 						"method": "POST",
 						"header": [
-							{"key": "Accept", "value": "application/json"},
-							{"key": "Authorization", "value": "Bearer {{token}}"}
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
 						],
-						"url": "http://127.0.0.1:8000/api/logout"
+						"url": "{{base_url}}/api/logout"
 					}
 				}
 			]
@@ -53,19 +82,154 @@
 					"name": "Get All Proyek Riset",
 					"request": {
 						"method": "GET",
-						"url": "http://127.0.0.1:8000/api/proyek-riset"
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": "{{base_url}}/api/proyek-riset"
 					}
-				}
-			]
-		},
-		{
-			"name": "Anggota Alumni",
-			"item": [
+				},
 				{
-					"name": "Get All Anggota Alumni",
+					"name": "Get Detail Proyek Riset",
 					"request": {
 						"method": "GET",
-						"url": "http://127.0.0.1:8000/api/anggota-alumni"
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": "{{base_url}}/api/proyek-riset/1"
+					}
+				},
+				{
+					"name": "Create Proyek Riset",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "judul_penelitian_simulasi",
+									"value": "Analisis Efisiensi Panel Surya BIPV",
+									"type": "text"
+								},
+								{
+									"key": "penulis",
+									"value": "Dr. Eng. Tika Erna Putri, S.Si., M.Sc.",
+									"type": "text"
+								},
+								{
+									"key": "tanggal_mulai",
+									"value": "2026-05-01",
+									"type": "text"
+								},
+								{
+									"key": "status_proyek",
+									"value": "Sedang Berjalan",
+									"type": "text"
+								},
+								{
+									"key": "deskripsi_singkat",
+									"value": "Deskripsi riset dengan penanda galeri [[RESEARCH_IMAGES]]",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": ""
+								},
+								{
+									"key": "supporting_image_1",
+									"type": "file",
+									"src": "",
+									"disabled": true
+								},
+								{
+									"key": "supporting_image_2",
+									"type": "file",
+									"src": "",
+									"disabled": true
+								}
+							]
+						},
+						"url": "{{base_url}}/api/proyek-riset"
+					}
+				},
+				{
+					"name": "Update Proyek Riset",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "_method",
+									"value": "PUT",
+									"type": "text"
+								},
+								{
+									"key": "judul_penelitian_simulasi",
+									"value": "Analisis Efisiensi Panel Surya BIPV (Diperbarui)",
+									"type": "text"
+								},
+								{
+									"key": "penulis",
+									"value": "Prof. Hendra Wijaya",
+									"type": "text"
+								},
+								{
+									"key": "status_proyek",
+									"value": "Selesai",
+									"type": "text"
+								},
+								{
+									"key": "deskripsi_singkat",
+									"value": "Deskripsi riset yang diperbarui.",
+									"type": "text"
+								}
+							]
+						},
+						"url": "{{base_url}}/api/proyek-riset/1"
+					}
+				},
+				{
+					"name": "Delete Proyek Riset",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": "{{base_url}}/api/proyek-riset/1"
 					}
 				}
 			]
@@ -77,7 +241,93 @@
 					"name": "Get All Publikasi Hibah",
 					"request": {
 						"method": "GET",
-						"url": "http://127.0.0.1:8000/api/publikasi-hibah"
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": "{{base_url}}/api/publikasi-hibah"
+					}
+				},
+				{
+					"name": "Get Detail Publikasi Hibah",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": "{{base_url}}/api/publikasi-hibah/1"
+					}
+				},
+				{
+					"name": "Create Publikasi Hibah",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jenis\": \"Publikasi Jurnal\",\n  \"judul_karya_hibah\": \"Penerapan Deep Learning pada Sistem BIPV\",\n  \"penulis\": \"Dr. Eng. Tika Erna Putri, S.Si., M.Sc.\",\n  \"nama_jurnal_skema\": \"IEEE Journal of Photovoltaics\",\n  \"tahun\": 2026,\n  \"tautan_eksternal\": \"https://doi.org/10.1000/tplab2026\",\n  \"deskripsi_pencapaian\": \"Ringkasan publikasi ilmiah\"\n}"
+						},
+						"url": "{{base_url}}/api/publikasi-hibah"
+					}
+				},
+				{
+					"name": "Update Publikasi Hibah",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"judul_karya_hibah\": \"Penerapan Deep Learning pada Sistem BIPV (Edisi Revisi)\",\n  \"penulis\": \"Prof. Hendra Wijaya\",\n  \"nama_jurnal_skema\": \"Renewable Energy Journal\",\n  \"tahun\": 2026,\n  \"tautan_eksternal\": \"https://doi.org/10.1000/tplab2026-rev\"\n}"
+						},
+						"url": "{{base_url}}/api/publikasi-hibah/1"
+					}
+				},
+				{
+					"name": "Delete Publikasi Hibah",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": "{{base_url}}/api/publikasi-hibah/1"
 					}
 				}
 			]
@@ -89,7 +339,149 @@
 					"name": "Get All Berita Isu",
 					"request": {
 						"method": "GET",
-						"url": "http://127.0.0.1:8000/api/berita-isu"
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": "{{base_url}}/api/berita-isu"
+					}
+				},
+				{
+					"name": "Get Detail Berita Isu",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": "{{base_url}}/api/berita-isu/1"
+					}
+				},
+				{
+					"name": "Create Berita Isu",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "judul_berita",
+									"value": "Seminar Energi Terbarukan TP Laboratory 2026",
+									"type": "text"
+								},
+								{
+									"key": "penulis",
+									"value": "Tim Redaksi TP Laboratory",
+									"type": "text"
+								},
+								{
+									"key": "tanggal_rilis",
+									"value": "2026-05-10",
+									"type": "text"
+								},
+								{
+									"key": "topik_utama",
+									"value": "Energi Terbarukan",
+									"type": "text"
+								},
+								{
+									"key": "isi_artikel_ringkas",
+									"value": "Liputan kegiatan seminar riset [[NEWS_IMAGES]]",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": ""
+								},
+								{
+									"key": "supporting_image_1",
+									"type": "file",
+									"src": "",
+									"disabled": true
+								},
+								{
+									"key": "supporting_image_2",
+									"type": "file",
+									"src": "",
+									"disabled": true
+								}
+							]
+						},
+						"url": "{{base_url}}/api/berita-isu"
+					}
+				},
+				{
+					"name": "Update Berita Isu",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "_method",
+									"value": "PUT",
+									"type": "text"
+								},
+								{
+									"key": "judul_berita",
+									"value": "Seminar Energi Terbarukan TP Laboratory 2026 (Update)",
+									"type": "text"
+								},
+								{
+									"key": "penulis",
+									"value": "Editor TP Laboratory",
+									"type": "text"
+								},
+								{
+									"key": "topik_utama",
+									"value": "Teknologi BIPV",
+									"type": "text"
+								}
+							]
+						},
+						"url": "{{base_url}}/api/berita-isu/1"
+					}
+				},
+				{
+					"name": "Delete Berita Isu",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": "{{base_url}}/api/berita-isu/1"
 					}
 				}
 			]
@@ -101,7 +493,154 @@
 					"name": "Get All Prestasi Pencapaian",
 					"request": {
 						"method": "GET",
-						"url": "http://127.0.0.1:8000/api/prestasi-pencapaian"
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": "{{base_url}}/api/prestasi-pencapaian"
+					}
+				},
+				{
+					"name": "Get Detail Prestasi Pencapaian",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": "{{base_url}}/api/prestasi-pencapaian/1"
+					}
+				},
+				{
+					"name": "Create Prestasi Pencapaian",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "nama_prestasi",
+									"value": "Juara 1 Inovasi Energi Terbarukan Nasional",
+									"type": "text"
+								},
+								{
+									"key": "penulis",
+									"value": "Dr. Budi Santoso",
+									"type": "text"
+								},
+								{
+									"key": "penyelenggara",
+									"value": "Kemendikbudristek",
+									"type": "text"
+								},
+								{
+									"key": "tingkat",
+									"value": "Nasional",
+									"type": "text"
+								},
+								{
+									"key": "tahun_diperoleh",
+									"value": "2026",
+									"type": "text"
+								},
+								{
+									"key": "deskripsi",
+									"value": "Deskripsi prestasi dan pencapaian [[ACHIEVEMENT_IMAGES]]",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": ""
+								},
+								{
+									"key": "supporting_image_1",
+									"type": "file",
+									"src": "",
+									"disabled": true
+								},
+								{
+									"key": "supporting_image_2",
+									"type": "file",
+									"src": "",
+									"disabled": true
+								}
+							]
+						},
+						"url": "{{base_url}}/api/prestasi-pencapaian"
+					}
+				},
+				{
+					"name": "Update Prestasi Pencapaian",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "_method",
+									"value": "PUT",
+									"type": "text"
+								},
+								{
+									"key": "nama_prestasi",
+									"value": "Juara 1 Inovasi Energi Terbarukan Nasional (Update)",
+									"type": "text"
+								},
+								{
+									"key": "penulis",
+									"value": "Prof. Siti Aminah",
+									"type": "text"
+								},
+								{
+									"key": "tahun_diperoleh",
+									"value": "2026",
+									"type": "text"
+								}
+							]
+						},
+						"url": "{{base_url}}/api/prestasi-pencapaian/1"
+					}
+				},
+				{
+					"name": "Delete Prestasi Pencapaian",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": "{{base_url}}/api/prestasi-pencapaian/1"
 					}
 				}
 			]

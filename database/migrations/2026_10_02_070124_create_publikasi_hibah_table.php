@@ -19,7 +19,7 @@ return new class extends Migration
         $table->integer('tahun')->nullable();
         $table->text('deskripsi_pencapaian')->nullable();
         $table->string('tautan_eksternal')->unique()->nullable();
-        
+
         // Foreign Keys
         $table->foreignId('proyek_id')->nullable()->constrained('proyek_riset', 'proyek_id')->onDelete('set null');
         $table->foreignId('admin_id')->constrained('admins', 'admin_id')->onDelete('cascade');

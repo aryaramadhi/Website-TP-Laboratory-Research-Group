@@ -15,6 +15,7 @@ class BeritaIsu extends Model
 
     protected $fillable = [
         'judul_berita',
+        'penulis',
         'tanggal_rilis',
         'isi_artikel_ringkas',
         'gambar_pendukung',

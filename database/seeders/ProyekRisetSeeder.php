@@ -18,7 +18,7 @@ class ProyekRisetSeeder extends Seeder
             'tanggal_mulai'             => '2026-01-15',
             'tanggal_selesai'           => '2026-12-31',
             'status_proyek'             => 'Selesai',
-            'admin_id'                  => 1
+            'admin_id'                  => 1,
         ]);
 
         ProyekRiset::create([
@@ -30,7 +30,7 @@ class ProyekRisetSeeder extends Seeder
             'tanggal_mulai'             => '2026-06-01',
             'tanggal_selesai'           => null,
             'status_proyek'             => 'Sedang Berjalan',
-            'admin_id'                  => 1
+            'admin_id'                  => 1,
         ]);
     }
 }

@@ -15,6 +15,7 @@ class PublikasiHibah extends Model
     protected $fillable = [
         'jenis',
         'judul_karya_hibah',
+        'penulis',
         'nama_jurnal_skema',
         'tahun',
         'deskripsi_pencapaian',
@@ -32,5 +33,4 @@ class PublikasiHibah extends Model
     {
         return $this->belongsTo(ProyekRiset::class, 'proyek_id');
     }
-
 }

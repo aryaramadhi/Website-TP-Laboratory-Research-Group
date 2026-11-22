@@ -35,6 +35,7 @@ class PrestasiPencapaianApiTest extends TestCase
 
         $this->proyek = ProyekRiset::create([
             'judul_penelitian_simulasi' => 'Riset Induk',
+            'penulis'                   => 'Dr. Eng. Tika Erna Putri',
             'deskripsi_singkat'         => 'Deskripsi riset induk',
             'dokumentasi_visual_utama'  => 'images/research/default.jpg',
             'tanggal_mulai'             => '2026-01-01',
@@ -73,6 +74,7 @@ class PrestasiPencapaianApiTest extends TestCase
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->postJson('/api/prestasi-pencapaian', [
                 'nama_prestasi' => 'Juara Inovasi',
+                'penulis'       => 'Dr. Budi Santoso',
             ]);
 
         $response->assertStatus(422)
@@ -120,7 +122,7 @@ class PrestasiPencapaianApiTest extends TestCase
         $prestasi = PrestasiPencapaian::create([
             'nama_prestasi'   => 'Nama Awal',
             'penulis'         => 'Penulis Awal',
-            'gambar_utama'    => 'prestasi-pencapaian/main.jpg',
+            'gambar_utama'    => 'achievements/main.jpg',
             'tahun_diperoleh' => 2025,
         ]);
 
@@ -140,11 +142,12 @@ class PrestasiPencapaianApiTest extends TestCase
 
     public function test_admin_can_delete_prestasi()
     {
-        $mainPath = 'prestasi-pencapaian/del-main.jpg';
+        $mainPath = 'achievements/del-main.jpg';
         Storage::disk('public')->put($mainPath, 'content');
 
         $prestasi = PrestasiPencapaian::create([
             'nama_prestasi' => 'Akan Dihapus',
+            'penulis'       => 'Dr. Budi Santoso',
             'gambar_utama'  => $mainPath,
         ]);
 

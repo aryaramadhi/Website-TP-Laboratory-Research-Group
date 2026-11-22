@@ -20,7 +20,7 @@ return new class extends Migration
         $table->integer('tahun_lulus_keluar')->nullable();
         $table->string('kontak_profesional')->nullable();
         $table->string('tautan_repositori_pribadi')->nullable();
-        
+
         // Foreign Key to admins
         $table->foreignId('admin_id')->constrained('admins', 'admin_id')->onDelete('cascade');
         $table->timestamps();

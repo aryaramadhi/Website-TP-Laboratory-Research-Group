@@ -36,6 +36,7 @@ class BeritaIsuApiTest extends TestCase
     {
         BeritaIsu::create([
             'judul_berita'        => 'Berita Lama',
+            'penulis'             => 'Tim Redaksi',
             'tanggal_rilis'       => '2025-01-01',
             'isi_artikel_ringkas' => 'Konten lama',
             'gambar_pendukung'    => 'images/news/lama.jpg',
@@ -45,6 +46,7 @@ class BeritaIsuApiTest extends TestCase
 
         BeritaIsu::create([
             'judul_berita'        => 'Berita Baru',
+            'penulis'             => 'Tim Redaksi Terkini',
             'tanggal_rilis'       => '2026-03-01',
             'isi_artikel_ringkas' => 'Konten baru',
             'gambar_pendukung'    => 'images/news/baru.jpg',
@@ -56,6 +58,7 @@ class BeritaIsuApiTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertEquals('Berita Baru', $response->json('0.judul_berita'));
+        $this->assertEquals('Tim Redaksi Terkini', $response->json('0.penulis'));
         $this->assertNotNull($response->json('0.image_url'));
     }
 
@@ -64,6 +67,7 @@ class BeritaIsuApiTest extends TestCase
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->postJson('/api/berita-isu', [
                 'judul_berita' => 'Berita Tanpa Gambar',
+                'penulis'      => 'Tim Redaksi',
             ]);
 
         $response->assertStatus(422)
@@ -75,6 +79,7 @@ class BeritaIsuApiTest extends TestCase
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->post('/api/berita-isu', [
                 'judul_berita'       => 'Berita Pasangan Gambar Tidak Lengkap',
+                'penulis'            => 'Tim Redaksi',
                 'image'              => UploadedFile::fake()->image('main.jpg'),
                 'supporting_image_1' => UploadedFile::fake()->image('sup1.jpg'),
             ]);
@@ -88,6 +93,7 @@ class BeritaIsuApiTest extends TestCase
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->post('/api/berita-isu', [
                 'judul_berita'        => 'Berita Teknologi Terkini',
+                'penulis'             => 'Tim Redaksi',
                 'tanggal_rilis'       => '2026-03-15',
                 'isi_artikel_ringkas' => 'Isi ringkas artikel [[NEWS_IMAGES]]',
                 'topik_utama'         => 'Teknologi BIPV',
@@ -97,9 +103,11 @@ class BeritaIsuApiTest extends TestCase
             ]);
 
         $response->assertStatus(201)
-            ->assertJsonPath('data.judul_berita', 'Berita Teknologi Terkini');
+            ->assertJsonPath('data.judul_berita', 'Berita Teknologi Terkini')
+            ->assertJsonPath('data.penulis', 'Tim Redaksi');
 
         $berita = BeritaIsu::first();
+        $this->assertEquals('Tim Redaksi', $berita->penulis);
         $this->assertNotNull($berita->gambar_pendukung);
         $this->assertNotNull($berita->gambar_pendukung_1);
         $this->assertNotNull($berita->gambar_pendukung_2);
@@ -113,7 +121,8 @@ class BeritaIsuApiTest extends TestCase
     {
         $berita = BeritaIsu::create([
             'judul_berita'     => 'Judul Awal',
-            'gambar_pendukung' => 'berita-isu/main.jpg',
+            'penulis'          => 'Penulis Awal',
+            'gambar_pendukung' => 'news/main.jpg',
             'admin_id'         => $this->admin->admin_id,
         ]);
 
@@ -129,11 +138,12 @@ class BeritaIsuApiTest extends TestCase
 
     public function test_admin_can_delete_berita()
     {
-        $path = 'berita-isu/delete.jpg';
+        $path = 'news/delete.jpg';
         Storage::disk('public')->put($path, 'content');
 
         $berita = BeritaIsu::create([
             'judul_berita'     => 'Berita Dihapus',
+            'penulis'          => 'Tim Redaksi',
             'gambar_pendukung' => $path,
             'admin_id'         => $this->admin->admin_id,
         ]);

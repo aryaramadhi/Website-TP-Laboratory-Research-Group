@@ -19,7 +19,7 @@ return new class extends Migration
         $table->date('tanggal_mulai')->nullable();
         $table->date('tanggal_selesai')->nullable();
         $table->string('status_proyek')->nullable(); // Sedang Berjalan, Selesai
-        
+
         // Foreign Key to admins
         $table->foreignId('admin_id')->constrained('admins', 'admin_id')->onDelete('cascade');
         $table->timestamps();

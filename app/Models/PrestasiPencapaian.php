@@ -36,12 +36,25 @@ class PrestasiPencapaian extends Model
 
     public function getImageUrlAttribute(): ?string
     {
-        return HandlesImageUploads::formatAssetUrl($this->gambar_utama);
+        if ($this->gambar_utama) {
+            return HandlesImageUploads::formatAssetUrl($this->gambar_utama);
+        }
+
+        // Backward compatibility fallback: if dokumentasi_bukti is an image (not PDF), use it
+        if ($this->dokumentasi_bukti && !$this->isPdf($this->dokumentasi_bukti)) {
+            return HandlesImageUploads::formatAssetUrl($this->dokumentasi_bukti);
+        }
+
+        return null;
     }
 
     public function getDocumentUrlAttribute(): ?string
     {
-        return HandlesImageUploads::formatAssetUrl($this->dokumentasi_bukti);
+        if ($this->dokumentasi_bukti && $this->isPdf($this->dokumentasi_bukti)) {
+            return HandlesImageUploads::formatAssetUrl($this->dokumentasi_bukti);
+        }
+
+        return null;
     }
 
     public function getSupportingImage1UrlAttribute(): ?string
@@ -52,6 +65,15 @@ class PrestasiPencapaian extends Model
     public function getSupportingImage2UrlAttribute(): ?string
     {
         return HandlesImageUploads::formatAssetUrl($this->gambar_pendukung_2);
+    }
+
+    protected function isPdf(?string $path): bool
+    {
+        if (!$path) {
+            return false;
+        }
+        $clean = strtolower(trim(explode('?', $path)[0]));
+        return str_ends_with($clean, '.pdf');
     }
 
     public function proyekRiset()

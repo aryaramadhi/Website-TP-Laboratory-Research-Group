@@ -15,6 +15,7 @@ class ProyekRiset extends Model
 
     protected $fillable = [
         'judul_penelitian_simulasi',
+        'penulis',
         'deskripsi_singkat',
         'dokumentasi_visual_utama',
         'gambar_pendukung_1',

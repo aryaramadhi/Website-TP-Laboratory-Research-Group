@@ -10,7 +10,7 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-    {  
+    {
     Schema::create('jnc_proyek_anggota', function (Blueprint $table) {
         $table->id('jnc_proyek_anggota_id');
         $table->foreignId('proyek_id')->constrained('proyek_riset', 'proyek_id')->onDelete('cascade');

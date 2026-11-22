@@ -6,21 +6,31 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Hapus fitur anggota & alumni dari database.
+     * Urutan penting: FK dan kolom di prestasi dulu, lalu tabel pivot, terakhir anggota_alumni.
+     */
     public function up(): void
     {
-        if (Schema::hasColumn('prestasi_pencapaian', 'anggota_alumni_id')) {
+        // 1. prestasi_pencapaian: lepas FK + hapus kolom anggota_alumni_id
+        if (Schema::hasTable('prestasi_pencapaian') && Schema::hasColumn('prestasi_pencapaian', 'anggota_alumni_id')) {
             Schema::table('prestasi_pencapaian', function (Blueprint $table) {
                 $table->dropForeign(['anggota_alumni_id']);
                 $table->dropColumn('anggota_alumni_id');
             });
         }
 
+        // 2. tabel pivot
         Schema::dropIfExists('jnc_anggota_kontribusi_publikasi');
         Schema::dropIfExists('jnc_proyek_anggota');
 
+        // 3. tabel utama
         Schema::dropIfExists('anggota_alumni');
     }
 
+    /**
+     * Rollback: buat ulang struktur (data tidak ikut kembali).
+     */
     public function down(): void
     {
         Schema::create('anggota_alumni', function (Blueprint $table) {

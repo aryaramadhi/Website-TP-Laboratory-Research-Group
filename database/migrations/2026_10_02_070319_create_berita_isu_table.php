@@ -18,7 +18,7 @@ return new class extends Migration
         $table->text('isi_artikel_ringkas')->nullable();
         $table->string('gambar_pendukung')->nullable();
         $table->string('topik_utama')->nullable();
-        
+
         // Foreign Key to admins
         $table->foreignId('admin_id')->constrained('admins', 'admin_id')->onDelete('cascade');
         $table->timestamps();
